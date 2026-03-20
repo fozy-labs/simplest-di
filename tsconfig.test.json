@@ -1,0 +1,5 @@
+{
+    "extends": ["./tsconfig.json", "@fozy-labs/js-configs/typescript/test"],
+    "include": ["vitest.config.ts", "src/**/*.test.ts", "src/**/*.test.tsx", "src/__tests__/**/*"],
+    "exclude": ["node_modules", "dist"]
+}

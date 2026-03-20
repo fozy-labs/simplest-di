@@ -1,0 +1,1 @@
+export { resetRegistry } from "@/core";

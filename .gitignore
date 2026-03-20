@@ -1,0 +1,23 @@
+**/node_modules
+**/.idea
+**/dist
+**/*.tsbuildinfo
+**/*.obsidian
+
+coverage
+
+# yarn v3
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# Vite files
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+.vite/
+
+.idea
