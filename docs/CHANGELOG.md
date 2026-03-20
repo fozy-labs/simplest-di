@@ -5,7 +5,7 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/),
 проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
-## [Unreleased]
+## [0.2.0] - 2026-03-20
 
 Первый релиз. Извлечено из монорепозитория fozy (`@/shared/di/`).
 
