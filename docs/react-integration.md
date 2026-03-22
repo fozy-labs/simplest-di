@@ -2,7 +2,7 @@
 
 ## Обзор
 
-`@fozy-labs/simplest-di` предоставляет интеграцию с React через два экспорта: `setupReactDi()` и `DiScopeProvider`. Для работы требуется **React ≥ 19**.
+`@fozy-labs/simplest-di` предоставляет интеграцию с React через два экспорта: `setupReactDi()` и `DiScopeProvider`. Для работы требуется **React ≥ 19**. Контракты, созданные через `inject.define()`, используют ту же React-интеграцию: отдельного React-специфичного API для них нет.
 
 ## `setupReactDi()`
 
@@ -58,6 +58,47 @@ function App() {
     );
 }
 ```
+
+## Контракты в React
+
+Для контрактов по-прежнему используются `setupReactDi()` и `DiScopeProvider`. Если scoped-контракт уже привязан через `bind()`, это считается регистрацией зависимости: дополнительный `provide` для самого контракта не нужен.
+
+```tsx
+import { DiScopeProvider, inject, injectable, setupReactDi } from '@fozy-labs/simplest-di';
+
+setupReactDi();
+
+interface RequestSession {
+    requestId: string;
+}
+
+@injectable({ lifetime: 'SCOPED', requireProvide: true })
+class BrowserRequestSession implements RequestSession {
+    requestId = crypto.randomUUID();
+}
+
+const RequestSession = inject.define<RequestSession>('RequestSession');
+RequestSession.bind(BrowserRequestSession);
+
+function RequestPanel() {
+    const session = inject(RequestSession);
+    return <span>{session.requestId}</span>;
+}
+
+function App() {
+    return (
+        <DiScopeProvider>
+            <RequestPanel />
+        </DiScopeProvider>
+    );
+}
+```
+
+Важно:
+
+- `inject(RequestSession)` вне `DiScopeProvider` по-прежнему завершится ошибкой отсутствующего active scope.
+- Для constructor-based scoped-сервисов правило не меняется: если у класса `requireProvide: true`, его по-прежнему нужно передать через `provide` или зарегистрировать через `inject.provide()`.
+- `setupReactDi()` и `DiScopeProvider` остаются единственными React entry points.
 
 ## Вложенные скоупы
 

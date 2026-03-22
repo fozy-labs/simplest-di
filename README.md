@@ -40,6 +40,30 @@ const client2 = inject(ApiClient);
 // client1 === client2 → true
 ```
 
+### Контракты через `inject.define`
+
+```typescript
+import { inject, injectable } from '@fozy-labs/simplest-di';
+
+interface ChatDataSource {
+    fetchChatMessages(): Promise<string[]>;
+}
+
+@injectable('SINGLETON')
+class CloudChatDataSource implements ChatDataSource {
+    fetchChatMessages() {
+        return Promise.resolve(['cloud']);
+    }
+}
+
+const ChatDataSource = inject.define<ChatDataSource>('ChatDataSource');
+ChatDataSource.bind(CloudChatDataSource);
+
+const dataSource = inject(ChatDataSource);
+```
+
+Контрактом является сам объект, возвращённый `inject.define()`. Имя используется для диагностики, а `bind()` нужно вызвать до первого `inject(contract)`. Если контракт не привязан, первый `inject(contract)` завершится ранней ошибкой.
+
 ### React: DiScopeProvider
 
 ```tsx
@@ -70,6 +94,7 @@ function App() {
 ## ✨ Особенности
 
 - 🔄 **Три режима жизненного цикла** — `SINGLETON`, `TRANSIENT`, `SCOPED`
+- 🧩 **Контракты интерфейсов** — `inject.define<T>(name)` для выбора реализации без нового named export
 - 🌳 **Иерархия скоупов** — Родительские и дочерние скоупы с наследованием зависимостей
 - ⚛️ **React-интеграция** — `DiScopeProvider` для управления скоупами в React-дереве
 - 🎨 **Stage 3 декораторы** — TC39 декораторы, без `experimentalDecorators`
@@ -79,9 +104,8 @@ function App() {
 
 ## 📚 Документация
 
-- [**Концепции DI**](./docs/concepts.md) — жизненные циклы, скоупы, декораторы, обнаружение циклов
-- [**React-интеграция**](./docs/react-integration.md) — setupReactDi, DiScopeProvider, вложенные скоупы
-- [**Миграция с fozy**](./docs/migration.md) — пошаговая инструкция миграции
+- [**Концепции DI**](./docs/concepts.md) — жизненные циклы, скоупы, контракты, обнаружение циклов
+- [**React-интеграция**](./docs/react-integration.md) — setupReactDi, DiScopeProvider, scoped-контракты
 - [**CHANGELOG**](./docs/CHANGELOG.md) — история изменений
 
 
@@ -91,7 +115,8 @@ function App() {
 
 | Экспорт | Тип | Описание |
 |---|---|---|
-| `inject` | Функция | Разрешение зависимости по токену (классу) |
+| `inject` | Функция | Разрешение зависимости по токену (классу или контракту) |
+| `inject.define` | Метод | Создание контрактного токена с последующим `bind()` |
 | `inject.provide` | Метод | Явная регистрация зависимости в скоупе |
 | `injectable` | Декоратор | Помечает класс метаданными DI (lifetime, опции) |
 | `Scope` | Класс | Контейнер скоупа с иерархией и жизненным циклом |

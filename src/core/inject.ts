@@ -1,21 +1,107 @@
-import { ProvideOptions } from "./di.types";
-import { CircularDependencyError, MustBeProvidedError, NonCompatibleParentError } from "./errors";
-import { getInjectOptions } from "./getInjectOptions";
-import { InjectScope } from "./InjectScope";
-import { Scope } from "./Scope";
-import { INJECTING_INSTANCE } from "./symbols";
+import {
+    CONTRACT_STATE,
+    ContractProvider,
+    Constructor,
+    DefinedContract,
+    DefinedContractState,
+    DEFINED_CONTRACT,
+    InjectComputedOptions,
+    InjectedInstance,
+    InjectOptions,
+    ProvideOptions,
+} from "@/core/di.types";
+import {
+    CircularDependencyError,
+    ContractAlreadyResolvedError,
+    MustBeProvidedError,
+    NonCompatibleParentError,
+    UnboundContractError,
+} from "@/core/errors";
+import { getInjectOptions } from "@/core/getInjectOptions";
+import { InjectScope } from "@/core/InjectScope";
+import { Scope } from "@/core/Scope";
+import { INJECTING_INSTANCE } from "@/core/symbols";
 
-type Constructor = new (...args: any[]) => any;
+const registry = new Map<unknown, unknown>();
 
-const registry = new Map();
+type InjectFn = {
+    <T extends Constructor>(arg: T | InjectOptions<T>, scope?: Scope): InjectedInstance<T>;
+    <T>(arg: DefinedContract<T> | InjectOptions<T>, scope?: Scope): T;
+    provide<T extends Constructor>(token: T | InjectOptions<T>, scope?: Scope): InjectedInstance<T>;
+    provide<T>(token: DefinedContract<T> | InjectOptions<T>, scope?: Scope): T;
+    define<T>(name: string): DefinedContract<T>;
+};
 
-export function inject<T extends Constructor>(arg: ProvideOptions<T>, scope?: Scope): InstanceType<T> {
+function createDefinedContract<T>(name: string): DefinedContract<T> {
+    let contract: DefinedContract<T>;
+
+    contract = {
+        [DEFINED_CONTRACT]: true as const,
+        [CONTRACT_STATE]: { status: "unbound" } as DefinedContractState<T>,
+        get token() {
+            return contract;
+        },
+        get name() {
+            return name;
+        },
+        get lifetime() {
+            const state = contract[CONTRACT_STATE];
+
+            if (state.status === "unbound") {
+                throw new UnboundContractError(name);
+            }
+
+            return state.descriptor.lifetime;
+        },
+        get requireProvide() {
+            return false as const;
+        },
+        getInstance() {
+            const state = contract[CONTRACT_STATE];
+
+            if (state.status === "unbound") {
+                throw new UnboundContractError(name);
+            }
+
+            if (state.status === "bound-unresolved") {
+                contract[CONTRACT_STATE] = {
+                    status: "bound-resolved",
+                    descriptor: state.descriptor,
+                    implementationName: state.implementationName,
+                };
+            }
+
+            return state.descriptor.getInstance() as T;
+        },
+        bind(provider: ContractProvider<T>) {
+            const state = contract[CONTRACT_STATE];
+
+            if (state.status === "bound-resolved") {
+                throw new ContractAlreadyResolvedError(name);
+            }
+
+            const descriptor = getInjectOptions(provider as Constructor<T> | InjectOptions<T>) as InjectComputedOptions<T>;
+
+            contract[CONTRACT_STATE] = {
+                status: "bound-unresolved",
+                descriptor,
+                implementationName: descriptor.name,
+            };
+
+            return contract;
+        },
+    } satisfies DefinedContract<T>;
+
+    return contract;
+}
+
+const injectImpl = function <T>(arg: ProvideOptions<T>, scope?: Scope): InjectedInstance<T> {
     const options = getInjectOptions(arg);
     const lifetime = options.lifetime;
     const token = options.token;
 
     if (lifetime === "TRANSIENT") {
-        return InjectScope.createInstance(options);
+        return InjectScope.createInstance(options as InjectOptions<any>) as InjectedInstance<T>;
     }
 
     if (lifetime === "SINGLETON") {
@@ -26,14 +112,14 @@ export function inject<T extends Constructor>(arg: ProvideOptions<T>, scope?: Sc
         }
 
         if (registered) {
-            return registered;
+            return registered as InjectedInstance<T>;
         }
 
         // Помечаем как "в процессе создания", чтобы отловить циклические зависимости
         registry.set(token, INJECTING_INSTANCE);
 
         try {
-            const instance = InjectScope.createInstance(options);
+            const instance = InjectScope.createInstance(options as InjectOptions<any>) as InjectedInstance<T>;
 
             registry.set(token, instance);
 
@@ -60,7 +146,7 @@ export function inject<T extends Constructor>(arg: ProvideOptions<T>, scope?: Sc
             throw new Error(`No active scope found for scoped injection of ${options.name}`);
         }
 
-        const scopedInstance = currentScope.getInstance(token as any);
+        const scopedInstance = currentScope.getInstance<InjectedInstance<T>>(token as object);
 
         if (scopedInstance === INJECTING_INSTANCE) {
             throw new CircularDependencyError(options.name);
@@ -89,11 +175,11 @@ export function inject<T extends Constructor>(arg: ProvideOptions<T>, scope?: Sc
         }
 
         // Помечаем как "в процессе создания", чтобы отловить циклические зависимости
-        currentScope.setInstance(token as any, INJECTING_INSTANCE);
+        currentScope.setInstance(token as object, INJECTING_INSTANCE);
 
-        const instance = InjectScope.createInstance(options);
+        const instance = InjectScope.createInstance(options as InjectOptions<any>) as InjectedInstance<T>;
 
-        currentScope.setInstance(token as any, instance);
+        currentScope.setInstance(token as object, instance);
 
         if (currentScope.isInitialized && onScopeInit) {
             const result = onScopeInit.call(instance) ?? undefined;
@@ -115,9 +201,9 @@ export function inject<T extends Constructor>(arg: ProvideOptions<T>, scope?: Sc
     }
 
     throw new Error(`Unknown injection lifetime: ${lifetime}`);
-}
+} as InjectFn;
 
-inject.provide = function <T extends Constructor>(token: ProvideOptions<T>, scope?: Scope): InstanceType<T> {
+injectImpl.provide = function <T>(token: ProvideOptions<T>, scope?: Scope): InjectedInstance<T> {
     const options = getInjectOptions(token);
     const lifetime = options.lifetime;
 
@@ -135,6 +221,12 @@ inject.provide = function <T extends Constructor>(token: ProvideOptions<T>, scop
         scope,
     );
 };
+
+injectImpl.define = function <T>(name: string): DefinedContract<T> {
+    return createDefinedContract<T>(name);
+};
+
+export const inject = injectImpl;
 
 export function resetRegistry() {
     registry.clear();

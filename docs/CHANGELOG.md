@@ -5,9 +5,20 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/),
 проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
-## [0.2.0] - 2026-03-20
+## [0.2.1] - 2026-03-22
 
-Первый релиз. Извлечено из монорепозитория fozy (`@/shared/di/`).
+### Добавлено
+
+- `inject.define<T>(name)` для объявления контрактов и выбора реализации через `bind()` без отдельного named export из корневого пакета
+- Поддержка object-shaped provider при `bind()`, если реализацию удобнее задавать через `getInstance()`
+
+### Изменено
+
+- Документация по DI-концепциям и README теперь явно описывает object identity контракта, обязательный `bind()` до первого разрешения и раннюю ошибку для unbound contract
+- React-документация уточняет, что scoped-контракты продолжают работать через `setupReactDi()` и `DiScopeProvider`, без нового React-specific API
+- Unit-тесты ядра и React перенесены в `src/core/__tests__/` и `src/react/__tests__/`, а интеграционные проверки дополнены root-export и React scoped-contract regression coverage
+
+## [0.2.0] - 2026-03-20
 
 ### Добавлено
 
@@ -20,12 +31,3 @@
 - `getInjectorName()` — утилита для отладки
 - Полная типизация (TypeScript ≥ 5.0, Stage 3 декораторы)
 - Документация: README, концепции DI, React-интеграция, миграция
-
-### Исправлено
-
-- Переименование `INJECTING_INSTANSE` → `INJECTING_INSTANCE` (опечатка)
-- `setupReactDi()`: проверка версии React `>= 18` → `>= 19`
-
-### Удалено
-
-- Зависимость от `@fozy/client-tools`

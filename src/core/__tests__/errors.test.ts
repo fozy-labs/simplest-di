@@ -1,4 +1,10 @@
-import { CircularDependencyError, MustBeProvidedError, NonCompatibleParentError } from "@/core";
+import {
+    CircularDependencyError,
+    ContractAlreadyResolvedError,
+    MustBeProvidedError,
+    NonCompatibleParentError,
+    UnboundContractError,
+} from "@/core/errors";
 import { InjectScope } from "@/core/InjectScope";
 
 describe("errors", () => {
@@ -47,5 +53,25 @@ describe("errors", () => {
         expect(error.name).toBe("MustBeProvidedError");
         expect(error.message).toContain("RequiredService");
         expect(error.message).toContain("must be provided");
+    });
+
+    it("T44: UnboundContractError has correct name and message", () => {
+        const error = new UnboundContractError("ChatDataSource");
+
+        expect(error).toBeInstanceOf(Error);
+        expect(error).toBeInstanceOf(UnboundContractError);
+        expect(error.name).toBe("UnboundContractError");
+        expect(error.message).toContain("ChatDataSource");
+        expect(error.message).toContain("must be bound");
+    });
+
+    it("T45: ContractAlreadyResolvedError has correct name and message", () => {
+        const error = new ContractAlreadyResolvedError("ChatDataSource");
+
+        expect(error).toBeInstanceOf(Error);
+        expect(error).toBeInstanceOf(ContractAlreadyResolvedError);
+        expect(error.name).toBe("ContractAlreadyResolvedError");
+        expect(error.message).toContain("ChatDataSource");
+        expect(error.message).toContain("Cannot rebind");
     });
 });

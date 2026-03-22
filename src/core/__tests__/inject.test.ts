@@ -9,6 +9,7 @@ import {
     resetRegistry,
     Scope,
 } from "@/core";
+import { ContractAlreadyResolvedError, UnboundContractError } from "@/core/errors";
 
 // --- Helper classes ---
 
@@ -345,6 +346,137 @@ describe("inject", () => {
         const b = inject(SingletonService);
         expect(b).toBeInstanceOf(SingletonService);
         expect(a.id).not.toBe(b.id);
+    });
+
+    it("T44: same-name contracts do not share bindings", () => {
+        @injectable("SINGLETON")
+        class CloudDataSource {
+            kind = "cloud";
+        }
+
+        const ContractA = inject.define<{ kind: string }>("ChatDataSource");
+        const ContractB = inject.define<{ kind: string }>("ChatDataSource");
+
+        ContractA.bind(CloudDataSource);
+
+        expect(inject(ContractA)).toBeInstanceOf(CloudDataSource);
+        expect(() => inject(ContractB)).toThrow(UnboundContractError);
+    });
+
+    it("T45: rebinding before first resolution uses the last bound implementation", () => {
+        @injectable("TRANSIENT")
+        class ElectronDataSource {
+            kind = "electron";
+        }
+
+        @injectable("TRANSIENT")
+        class CloudDataSource {
+            kind = "cloud";
+        }
+
+        const ChatDataSource = inject.define<{ kind: string }>("ChatDataSource");
+
+        ChatDataSource.bind(ElectronDataSource);
+        ChatDataSource.bind(CloudDataSource);
+
+        expect(inject(ChatDataSource)).toBeInstanceOf(CloudDataSource);
+    });
+
+    it("T46: rebinding after first resolution is rejected", () => {
+        @injectable("SINGLETON")
+        class ElectronDataSource {
+            kind = "electron";
+        }
+
+        @injectable("SINGLETON")
+        class CloudDataSource {
+            kind = "cloud";
+        }
+
+        const ChatDataSource = inject.define<{ kind: string }>("ChatDataSource");
+
+        ChatDataSource.bind(ElectronDataSource);
+        inject(ChatDataSource);
+
+        expect(() => ChatDataSource.bind(CloudDataSource)).toThrow(ContractAlreadyResolvedError);
+    });
+
+    it("T47: singleton contracts cache by contract token, not by constructor token", () => {
+        @injectable("SINGLETON")
+        class CloudDataSource {
+            kind = "cloud";
+        }
+
+        const ChatDataSource = inject.define<CloudDataSource>("ChatDataSource");
+        ChatDataSource.bind(CloudDataSource);
+
+        const contractA = inject(ChatDataSource);
+        const contractB = inject(ChatDataSource);
+        const constructorInstance = inject(CloudDataSource);
+
+        expect(contractA).toBe(contractB);
+        expect(contractA).toBeInstanceOf(CloudDataSource);
+        expect(constructorInstance).toBeInstanceOf(CloudDataSource);
+        expect(contractA).not.toBe(constructorInstance);
+    });
+
+    it("T48: object-shaped contract providers remain supported", () => {
+        const factory = vi.fn(() => ({ kind: "factory" }));
+        const ChatDataSource = inject.define<{ kind: string }>("ChatDataSource");
+
+        ChatDataSource.bind({
+            token: { provider: "factory" },
+            getInstance: factory,
+            lifetime: "TRANSIENT",
+            name: "FactoryProvider",
+        });
+
+        expect(inject(ChatDataSource)).toEqual({ kind: "factory" });
+        expect(factory).toHaveBeenCalledOnce();
+    });
+
+    it("T49: bound scoped contracts use binding as registration and keep lifecycle behavior", () => {
+        const onInit = vi.fn();
+
+        @injectable({ lifetime: "SCOPED", requireProvide: true, onScopeInit: onInit })
+        class ScopedContractImpl {
+            id = Math.random();
+        }
+
+        const ScopedContract = inject.define<ScopedContractImpl>("ScopedContract");
+        ScopedContract.bind(ScopedContractImpl);
+
+        expect(() => inject(ScopedContract)).toThrow(/No active scope found/);
+
+        const scope = createScope();
+        const instanceA = inject(ScopedContract, scope);
+        const instanceB = inject(ScopedContract, scope);
+
+        expect(instanceA).toBe(instanceB);
+        expect(onInit).not.toHaveBeenCalled();
+
+        scope.init();
+
+        expect(onInit).toHaveBeenCalledOnce();
+    });
+
+    it("T50: scoped contracts preserve parent compatibility checks", () => {
+        @injectable({ lifetime: "SCOPED", requireProvide: true })
+        class ScopedContractImpl {
+            id = Math.random();
+        }
+
+        const ScopedContract = inject.define<ScopedContractImpl>("ScopedContract");
+        ScopedContract.bind(ScopedContractImpl);
+
+        @injectable("SINGLETON")
+        class OuterSingleton {
+            constructor() {
+                inject(ScopedContract, createScope());
+            }
+        }
+
+        expect(() => inject(OuterSingleton)).toThrow(NonCompatibleParentError);
     });
 });
 

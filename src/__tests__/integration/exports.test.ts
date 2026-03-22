@@ -1,3 +1,5 @@
+import * as rootExports from "@/index";
+
 import {
     CircularDependencyError,
     DiScopeProvider,
@@ -19,6 +21,30 @@ describe("Integration: exports", () => {
         it("inject is a function", () => {
             expect(inject).toBeDefined();
             expect(typeof inject).toBe("function");
+        });
+
+        it("inject.define is reachable from the root import without extra runtime exports", () => {
+            interface ChatDataSource {
+                kind: string;
+            }
+
+            @injectable("SINGLETON")
+            class CloudChatDataSource implements ChatDataSource {
+                kind = "cloud";
+            }
+
+            expect(rootExports.inject).toBe(inject);
+            expect(typeof inject.define).toBe("function");
+            expect(Object.keys(rootExports)).not.toContain("defineContract");
+            expect(Object.keys(rootExports)).not.toContain("DefinedContract");
+
+            const ChatDataSource = inject.define<ChatDataSource>("ChatDataSource");
+            ChatDataSource.bind(CloudChatDataSource);
+
+            const instance = inject(ChatDataSource);
+
+            expect(instance).toBeInstanceOf(CloudChatDataSource);
+            expect(instance.kind).toBe("cloud");
         });
 
         it("injectable is a function", () => {

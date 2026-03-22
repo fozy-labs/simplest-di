@@ -248,4 +248,83 @@ describe("Integration: scoped lifecycle", () => {
         expect(latestScope.name).toBe("b");
         expect(latestScope.isInitialized).toBe(true);
     });
+
+    it("T79: bound scoped contracts resolve through DiScopeProvider and coexist with constructor consumers", async () => {
+        const initFn = vi.fn();
+        const cleanupFn = vi.fn();
+
+        interface RequestSession {
+            requestId: string;
+        }
+
+        @injectable("SINGLETON")
+        class Logger {
+            id = Math.random();
+        }
+
+        @injectable({
+            lifetime: "SCOPED",
+            requireProvide: true,
+            onScopeInit() {
+                initFn();
+                return () => cleanupFn();
+            },
+        })
+        class BrowserRequestSession implements RequestSession {
+            requestId = `session-${Math.random()}`;
+        }
+
+        @injectable({ lifetime: "SCOPED", requireProvide: false })
+        class PageStore {
+            logger = inject(Logger);
+        }
+
+        const RequestSession = inject.define<RequestSession>("RequestSession");
+        RequestSession.bind(BrowserRequestSession);
+
+        function MissingScopeConsumer() {
+            inject(RequestSession);
+            return null;
+        }
+
+        expect(() => render(<MissingScopeConsumer />)).toThrow(/No active scope found/);
+
+        let contractSessionA: RequestSession | null = null;
+        let contractSessionB: RequestSession | null = null;
+        let pageStore: PageStore | null = null;
+        let logger: Logger | null = null;
+
+        function Consumer() {
+            contractSessionA = inject(RequestSession);
+            contractSessionB = inject(RequestSession);
+            pageStore = inject(PageStore);
+            logger = inject(Logger);
+            return null;
+        }
+
+        const { unmount } = render(
+            <DiScopeProvider>
+                <Consumer />
+            </DiScopeProvider>,
+        );
+
+        expect(contractSessionA).toBeInstanceOf(BrowserRequestSession);
+        expect(contractSessionB).toBe(contractSessionA);
+        expect(pageStore).toBeInstanceOf(PageStore);
+        expect(logger).toBeInstanceOf(Logger);
+        expect(pageStore!.logger).toBe(logger);
+        expect(initFn).not.toHaveBeenCalled();
+        expect(cleanupFn).not.toHaveBeenCalled();
+
+        await tick();
+
+        expect(initFn).toHaveBeenCalledOnce();
+        expect(cleanupFn).not.toHaveBeenCalled();
+
+        unmount();
+
+        await tick();
+
+        expect(cleanupFn).toHaveBeenCalledOnce();
+    });
 });

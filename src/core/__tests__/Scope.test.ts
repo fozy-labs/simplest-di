@@ -1,6 +1,7 @@
 import { Subject } from "rxjs";
 
 import { Scope } from "@/core";
+import { INJECTING_INSTANCE } from "@/core/symbols";
 
 describe("Scope", () => {
     // T24: new Scope() creates empty scope
@@ -100,5 +101,35 @@ describe("Scope", () => {
         const scope = new Scope();
         expect(scope.init$).toBeNull();
         expect(scope.destroyed$).toBeNull();
+    });
+
+    it("T44: supports arbitrary object tokens in local scope storage", () => {
+        const scope = new Scope(null, "test");
+        const token = {};
+        const instance = { value: 42 };
+
+        scope.setInstance(token, instance);
+
+        expect(scope.getInstance<typeof instance>(token)).toBe(instance);
+    });
+
+    it("T45: object-backed tokens still resolve through the parent chain", () => {
+        const token = {};
+        const parent = new Scope(null, "parent");
+        const child = new Scope(parent, "child");
+        const instance = { value: 42 };
+
+        parent.setInstance(token, instance);
+
+        expect(child.getInstance<typeof instance>(token)).toBe(instance);
+    });
+
+    it("T46: object-backed tokens preserve sentinel storage", () => {
+        const scope = new Scope(null, "test");
+        const token = {};
+
+        scope.setInstance(token, INJECTING_INSTANCE);
+
+        expect(scope.getInstance(token)).toBe(INJECTING_INSTANCE);
     });
 });

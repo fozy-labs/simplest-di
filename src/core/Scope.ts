@@ -1,8 +1,6 @@
 import { Subject } from "rxjs";
 
-import { InjectingInstanceSymbol } from "./di.types";
-
-type Constructor<T = any> = new (...args: any[]) => T;
+import { InjectingInstanceSymbol, ScopeToken } from "@/core/di.types";
 
 export class Scope {
     private _isInitialized: boolean = false;
@@ -11,26 +9,26 @@ export class Scope {
         return this._isInitialized;
     }
 
-    instances = new WeakMap<Constructor, any>();
+    instances = new WeakMap<ScopeToken, unknown>();
 
     constructor(
         public parent: Scope | null = null,
         public name: string | undefined = undefined,
     ) {}
 
-    getInstance<T extends Constructor>(token: T): InstanceType<T> | null | InjectingInstanceSymbol {
+    getInstance<T>(token: ScopeToken): T | null | InjectingInstanceSymbol {
         if (this.instances.has(token)) {
-            return this.instances.get(token);
+            return this.instances.get(token) as T | InjectingInstanceSymbol;
         }
 
         if (this.parent) {
-            return this.parent.getInstance(token);
+            return this.parent.getInstance<T>(token);
         }
 
         return null;
     }
 
-    setInstance<T extends Constructor>(token: T, instance: InstanceType<T> | InjectingInstanceSymbol): void {
+    setInstance<T>(token: ScopeToken, instance: T | InjectingInstanceSymbol): void {
         this.instances.set(token, instance);
     }
 

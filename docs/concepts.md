@@ -2,7 +2,7 @@
 
 ## Обзор
 
-`@fozy-labs/simplest-di` — лёгкая система внедрения зависимостей (Dependency Injection), основанная на TC39 Stage 3 декораторах. Сервисы помечаются декоратором `@injectable()`, а разрешение зависимостей происходит через функцию `inject()`.
+`@fozy-labs/simplest-di` — лёгкая система внедрения зависимостей (Dependency Injection), основанная на TC39 Stage 3 декораторах. Сервисы помечаются декоратором `@injectable()`, а разрешение зависимостей происходит через функцию `inject()`. Для interface-shaped зависимостей можно создать отдельный контракт через `inject.define()` и затем резолвить его тем же `inject()`.
 
 ## Жизненные циклы (Lifetimes)
 
@@ -102,6 +102,52 @@ class WebSocketConnection {
 | `requireProvide` | `boolean` | Требовать явного `inject.provide()`. По умолчанию `true` для SCOPED |
 | `onScopeInit` | `(instance) => void \| (() => void)` | Callback при инициализации скоупа. Может вернуть cleanup-функцию |
 
+## Контракты через `inject.define()`
+
+Когда зависимость описана интерфейсом, а не конкретным классом, можно заранее объявить контракт и затем привязать к нему реализацию:
+
+```typescript
+import { inject, injectable } from '@fozy-labs/simplest-di';
+
+interface ChatDataSource {
+    fetchChatMessages(): Promise<string[]>;
+}
+
+@injectable('SINGLETON')
+class CloudChatDataSource implements ChatDataSource {
+    fetchChatMessages() {
+        return Promise.resolve(['cloud']);
+    }
+}
+
+const ChatDataSource = inject.define<ChatDataSource>('ChatDataSource');
+ChatDataSource.bind(CloudChatDataSource);
+
+const dataSource = inject(ChatDataSource);
+```
+
+Ключевые правила:
+
+- Идентичность контракта задаёт объект, возвращённый `inject.define()`, а не строковое имя. Два вызова `inject.define('ChatDataSource')` создают два разных токена.
+- `bind()` можно вызывать повторно только до первого разрешения. После первого `inject(contract)` повторная привязка запрещена.
+- Если вызвать `inject(contract)` до `bind()`, будет выброшена `UnboundContractError`.
+- `bind()` принимает либо класс с `@injectable()`, либо object-shaped provider с полями `lifetime`, `name` и `getInstance`.
+- Обычная constructor-based инъекция остаётся без изменений: `inject(SomeClass)` продолжает работать как раньше.
+
+Пример object-shaped provider:
+
+```typescript
+const MockChatDataSource = inject.define<ChatDataSource>('MockChatDataSource');
+
+MockChatDataSource.bind({
+    lifetime: 'TRANSIENT',
+    name: 'MockChatDataSourceImpl',
+    getInstance: () => ({
+        fetchChatMessages: () => Promise.resolve(['mock']),
+    }),
+});
+```
+
 ## Скоупы (Scopes)
 
 ### Иерархия parent-child
@@ -116,7 +162,7 @@ GrandchildScope → ChildScope → RootScope → null
 
 ### WeakMap-хранилище
 
-Каждый скоуп хранит экземпляры в `WeakMap<Constructor, instance>`. Это позволяет GC собирать экземпляры при уничтожении скоупа.
+Каждый скоуп хранит экземпляры в `WeakMap<object, instance>`. Это позволяет использовать как классы, так и объектные контрактные токены, и при этом не мешает GC собирать экземпляры после уничтожения скоупа.
 
 ## `requireProvide`
 
@@ -135,6 +181,8 @@ inject(AuthService, scope);
 inject.provide(AuthService, scope);
 const auth = inject(AuthService, scope); // OK
 ```
+
+Для scoped-контрактов правило немного отличается: если контракт уже привязан через `contract.bind(Impl)`, это само по себе считается регистрацией. Отдельный `inject.provide(contract, scope)` не нужен, но активный `Scope` всё равно обязателен.
 
 ## `onScopeInit` — жизненный цикл скоупа
 

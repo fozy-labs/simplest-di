@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import React from "react";
 
-import { useSafeMount } from "./useSafeMount";
+import { useSafeMount } from "@/react/useSafeMount";
 
 function flushMicrotasks(): Promise<void> {
     return act(() => new Promise<void>((r) => setTimeout(r, 10)));

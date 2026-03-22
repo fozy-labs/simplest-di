@@ -1,24 +1,28 @@
 import {
+    CONTRACT_STATE,
+    Constructor,
+    DefinedContract,
+    DEFINED_CONTRACT,
     Injectable,
     InjectableDetailedOptions,
     InjectComputedOptions,
     InjectionLifetime,
     InjectOptions,
-} from "./di.types";
-import { INJECTABLE_OPTIONS } from "./symbols";
+} from "@/core/di.types";
+import { UnboundContractError } from "@/core/errors";
+import { INJECTABLE_OPTIONS } from "@/core/symbols";
 
-type Constructor = new (...args: any[]) => any;
-
-function getName<T extends Constructor>(options: InjectOptions<T>): string {
-    if (typeof options === "function") {
-        // @ts-expect-error — options may be a function with .name
-        return options.name ?? options.constructor.name ?? "[anonymous]";
-    }
-
-    return String(options.token ?? "[anonymous]");
+function isDefinedContract<T>(value: unknown): value is DefinedContract<T> {
+    return typeof value === "object" && value !== null && (value as DefinedContract<T>)[DEFINED_CONTRACT] === true;
 }
 
-export function getInjectOptions<T extends Constructor>(arg: T | InjectOptions<T>): InjectComputedOptions<T> {
+function getName(options: Pick<InjectOptions, "token" | "name">): string {
+    return options.name ?? String(options.token ?? "[anonymous]");
+}
+
+export function getInjectOptions<T extends Constructor>(arg: T | InjectOptions<T>): InjectComputedOptions<T>;
+export function getInjectOptions<T>(arg: DefinedContract<T> | InjectOptions<T>): InjectComputedOptions<T>;
+export function getInjectOptions<T>(arg: Constructor | DefinedContract<T> | InjectOptions<T>): InjectComputedOptions<T> {
     if (typeof arg === "function") {
         const options = (arg as unknown as Partial<Injectable>)[INJECTABLE_OPTIONS];
 
@@ -46,16 +50,34 @@ export function getInjectOptions<T extends Constructor>(arg: T | InjectOptions<T
             token: arg,
             getInstance: () => new arg(),
             name: arg.name,
-        };
+        } as InjectComputedOptions<T>;
+    }
+
+    if (isDefinedContract(arg)) {
+        const state = arg[CONTRACT_STATE];
+
+        if (state.status === "unbound") {
+            throw new UnboundContractError(arg.name);
+        }
+
+        return {
+            ...state.descriptor,
+            token: arg,
+            name: arg.name,
+            requireProvide: false,
+            getInstance: arg.getInstance,
+        } as InjectComputedOptions<T>;
     }
 
     let options = arg as InjectOptions<T>;
 
     if (!options.name) {
+        const sourceOptions = options;
+
         options = {
             ...options,
             get name() {
-                return getName(options);
+                return getName(sourceOptions);
             },
         };
     }
