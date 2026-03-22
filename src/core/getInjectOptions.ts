@@ -1,8 +1,8 @@
 import {
-    CONTRACT_STATE,
     Constructor,
-    DefinedContract,
+    CONTRACT_STATE,
     DEFINED_CONTRACT,
+    DefinedContract,
     Injectable,
     InjectableDetailedOptions,
     InjectComputedOptions,
@@ -22,7 +22,9 @@ function getName(options: Pick<InjectOptions, "token" | "name">): string {
 
 export function getInjectOptions<T extends Constructor>(arg: T | InjectOptions<T>): InjectComputedOptions<T>;
 export function getInjectOptions<T>(arg: DefinedContract<T> | InjectOptions<T>): InjectComputedOptions<T>;
-export function getInjectOptions<T>(arg: Constructor | DefinedContract<T> | InjectOptions<T>): InjectComputedOptions<T> {
+export function getInjectOptions<T>(
+    arg: Constructor | DefinedContract<T> | InjectOptions<T>,
+): InjectComputedOptions<T> {
     if (typeof arg === "function") {
         const options = (arg as unknown as Partial<Injectable>)[INJECTABLE_OPTIONS];
 

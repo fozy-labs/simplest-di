@@ -1,22 +1,6 @@
-import {
-    CONTRACT_STATE,
-    ContractProvider,
-    Constructor,
-    DefinedContract,
-    DefinedContractState,
-    DEFINED_CONTRACT,
-    InjectComputedOptions,
-    InjectedInstance,
-    InjectOptions,
-    ProvideOptions,
-} from "@/core/di.types";
-import {
-    CircularDependencyError,
-    ContractAlreadyResolvedError,
-    MustBeProvidedError,
-    NonCompatibleParentError,
-    UnboundContractError,
-} from "@/core/errors";
+import { createDefinedContract } from "@/core/createDefinedContract";
+import { Constructor, DefinedContract, InjectedInstance, InjectOptions, ProvideOptions } from "@/core/di.types";
+import { CircularDependencyError, MustBeProvidedError, NonCompatibleParentError } from "@/core/errors";
 import { getInjectOptions } from "@/core/getInjectOptions";
 import { InjectScope } from "@/core/InjectScope";
 import { Scope } from "@/core/Scope";
@@ -31,69 +15,6 @@ type InjectFn = {
     provide<T>(token: DefinedContract<T> | InjectOptions<T>, scope?: Scope): T;
     define<T>(name: string): DefinedContract<T>;
 };
-
-function createDefinedContract<T>(name: string): DefinedContract<T> {
-    let contract: DefinedContract<T>;
-
-    contract = {
-        [DEFINED_CONTRACT]: true as const,
-        [CONTRACT_STATE]: { status: "unbound" } as DefinedContractState<T>,
-        get token() {
-            return contract;
-        },
-        get name() {
-            return name;
-        },
-        get lifetime() {
-            const state = contract[CONTRACT_STATE];
-
-            if (state.status === "unbound") {
-                throw new UnboundContractError(name);
-            }
-
-            return state.descriptor.lifetime;
-        },
-        get requireProvide() {
-            return false as const;
-        },
-        getInstance() {
-            const state = contract[CONTRACT_STATE];
-
-            if (state.status === "unbound") {
-                throw new UnboundContractError(name);
-            }
-
-            if (state.status === "bound-unresolved") {
-                contract[CONTRACT_STATE] = {
-                    status: "bound-resolved",
-                    descriptor: state.descriptor,
-                    implementationName: state.implementationName,
-                };
-            }
-
-            return state.descriptor.getInstance() as T;
-        },
-        bind(provider: ContractProvider<T>) {
-            const state = contract[CONTRACT_STATE];
-
-            if (state.status === "bound-resolved") {
-                throw new ContractAlreadyResolvedError(name);
-            }
-
-            const descriptor = getInjectOptions(provider as Constructor<T> | InjectOptions<T>) as InjectComputedOptions<T>;
-
-            contract[CONTRACT_STATE] = {
-                status: "bound-unresolved",
-                descriptor,
-                implementationName: descriptor.name,
-            };
-
-            return contract;
-        },
-    } satisfies DefinedContract<T>;
-
-    return contract;
-}
 
 const injectImpl = function <T>(arg: ProvideOptions<T>, scope?: Scope): InjectedInstance<T> {
     const options = getInjectOptions(arg);

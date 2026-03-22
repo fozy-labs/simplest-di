@@ -1,5 +1,4 @@
 import * as rootExports from "@/index";
-
 import {
     CircularDependencyError,
     DiScopeProvider,

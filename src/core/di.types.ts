@@ -62,4 +62,6 @@ export type DefinedContract<T> = {
     bind(provider: ContractProvider<T>): DefinedContract<T>;
 };
 
-export type ProvideOptions<T = any> = T extends Constructor ? InjectOptions<T> | T : InjectOptions<T> | DefinedContract<T>;
+export type ProvideOptions<T = any> = T extends Constructor
+    ? InjectOptions<T> | T
+    : InjectOptions<T> | DefinedContract<T>;
