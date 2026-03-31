@@ -3,7 +3,7 @@ import React from "react";
 import { Subject } from "rxjs";
 
 import { inject, injectable, resetRegistry, Scope } from "@/core";
-import { DiScopeProvider, setupReactDi } from "@/react";
+import { DiScopeProvider, setupReactDi } from "@/reactjs";
 
 // --- Helper utilities ---
 

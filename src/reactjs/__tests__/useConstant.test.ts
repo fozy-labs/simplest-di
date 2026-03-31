@@ -1,6 +1,6 @@
 import { renderHook } from "@testing-library/react";
 
-import { useConstant } from "@/react/useConstant";
+import { useConstant } from "@/reactjs/useConstant";
 
 describe("useConstant", () => {
     // T62: Returns stable reference across re-renders

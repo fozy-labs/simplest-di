@@ -6,8 +6,8 @@
     "type": "module",
     "prettier": "@fozy-labs/js-configs/prettier",
     "scripts": {
-        "build": "rimraf ./dist && tsc && tsc-alias --excludePaths react",
-        "build:watch": "npm run build && (concurrently \"tsc -w\" \"tsc-alias -w --excludePaths react\")",
+        "build": "rimraf ./dist && tsc && tsc-alias",
+        "build:watch": "npm run build && (concurrently \"tsc -w\" \"tsc-alias -w\")",
         "ts-check": "tsc --noEmit",
         "test": "tsc -p tsconfig.test.json && vitest run",
         "test:watch": "vitest",
