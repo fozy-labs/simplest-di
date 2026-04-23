@@ -327,4 +327,32 @@ describe("Integration: scoped lifecycle", () => {
 
         expect(cleanupFn).toHaveBeenCalledOnce();
     });
+
+    it("T80: DiScopeProvider provide resolves scoped dependencies from the same scope", () => {
+        @injectable("SCOPED")
+        class One {}
+
+        @injectable("SCOPED")
+        class Second {
+            one = inject(One);
+        }
+
+        let resolved: Second | null = null;
+
+        function Consumer() {
+            resolved = inject(Second);
+            return null;
+        }
+
+        expect(() =>
+            render(
+                <DiScopeProvider provide={[One, Second]}>
+                    <Consumer />
+                </DiScopeProvider>,
+            ),
+        ).not.toThrow();
+
+        expect(resolved).toBeInstanceOf(Second);
+        expect(resolved!.one).toBeInstanceOf(One);
+    });
 });

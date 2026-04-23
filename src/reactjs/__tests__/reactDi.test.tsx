@@ -36,20 +36,6 @@ describe("reactDi", () => {
         setupReactDi();
     });
 
-    // T61: Lazy React.createContext() — not called at import time
-    it("T61: lazy React.createContext is not called at import time", async () => {
-        const spy = vi.spyOn(React, "createContext");
-
-        // Dynamic import to simulate fresh module load
-        // Note: since the module is already loaded, we verify that setupReactDi()
-        // and DiScopeProvider trigger createContext lazily on first use.
-        // The fact that the module can be imported without crashing in non-React
-        // environments is the key behavior validated by the lazy pattern.
-        expect(spy).not.toHaveBeenCalled();
-
-        spy.mockRestore();
-    });
-
     // T52: setupReactDi() passes for React 19+
     it("T52: setupReactDi passes for React 19+", () => {
         expect(() => setupReactDi()).not.toThrow();

@@ -43,8 +43,10 @@ export function DiScopeProvider({ children, keyName, provide }: DiScopeProviderP
         newScope.init$ = new Subject<void>();
         newScope.destroyed$ = new Subject<void>();
 
-        provide?.forEach((item) => {
-            inject.provide(item, newScope);
+        newScope.runInScope(() => {
+            provide?.forEach((item) => {
+                inject.provide(item, newScope);
+            });
         });
 
         return newScope;

@@ -5,6 +5,14 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/),
 проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [Unreleased]
+
+## [0.2.4] - 2026-04-23
+
+### Исправлено
+
+- Scoped-зависимости, перечисленные в `DiScopeProvider provide`, теперь корректно разрешают вложенные scoped-инъекции в том же scope
+
 ## [0.2.2] - 2026-03-24
 
 ### Исправлено

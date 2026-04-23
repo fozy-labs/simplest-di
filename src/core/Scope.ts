@@ -46,5 +46,15 @@ export class Scope {
         this.destroyed$?.complete();
     }
 
+    runInScope<T>(fn: () => T): T {
+        const getPreviousScope = Scope.getCurrentScope;
+        try {
+            (Scope.getCurrentScope as any) = () => this;
+            return fn();
+        } finally {
+            (Scope.getCurrentScope as any) = getPreviousScope;
+        }
+    }
+
     static getCurrentScope: () => Scope | null = () => null;
 }
