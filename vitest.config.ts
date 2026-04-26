@@ -1,6 +1,7 @@
-import { defineConfig, mergeConfig } from "vitest/config";
 import { fileURLToPath, URL } from "node:url";
+
 import sharedConfig from "@fozy-labs/js-configs/vitest";
+import { defineConfig, mergeConfig } from "vitest/config";
 
 export default mergeConfig(
     sharedConfig,
