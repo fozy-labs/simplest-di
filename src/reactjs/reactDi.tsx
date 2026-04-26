@@ -1,21 +1,12 @@
 import React from "react";
-import { Subject } from "rxjs";
 
 import { ProvideOptions } from "@/core/di.types";
 import { inject } from "@/core/inject";
 import { Scope } from "@/core/Scope";
 
+import { getReactContext } from "./reactContext";
 import { useConstant } from "./useConstant";
-import { useSafeMount } from "./useSafeMount";
-
-let _reactContext: React.Context<Scope | null> | null = null;
-
-function getReactContext(): React.Context<Scope | null> {
-    if (!_reactContext) {
-        _reactContext = React.createContext<Scope | null>(null);
-    }
-    return _reactContext;
-}
+import { useScope } from "./useScope";
 
 export function setupReactDi() {
     const reactVersion = parseInt(React.version.split(".")[0], 10);
@@ -33,33 +24,65 @@ export type DiScopeProviderProps = {
     children: React.ReactNode;
     keyName?: string;
     provide?: ProvideOptions<any>[];
+    /**
+     * Внешне-управляемый Scope, созданный через {@link useScope}.
+     * Если задан — провайдер не создаёт новый scope и не управляет его жизненным циклом
+     * (init/dispose выполняет владелец, обычно сам useScope).
+     * Опция `provide` (если указана) будет выполнена в этот переданный scope.
+     */
+    scope?: Scope;
 };
 
-export function DiScopeProvider({ children, keyName, provide }: DiScopeProviderProps) {
-    const parentScope = React.use(getReactContext());
+function InternalScopeProvider({
+    children,
+    keyName,
+    provide,
+}: {
+    children: React.ReactNode;
+    keyName?: string;
+    provide?: ProvideOptions<any>[];
+}) {
+    const scope = useScope({ keyName, provide });
+    const ReactContext = getReactContext();
+    return <ReactContext.Provider value={scope}>{children}</ReactContext.Provider>;
+}
 
-    const scope = useConstant(() => {
-        const newScope = new Scope(parentScope, keyName);
-        newScope.init$ = new Subject<void>();
-        newScope.destroyed$ = new Subject<void>();
-
-        newScope.runInScope(() => {
-            provide?.forEach((item) => {
-                inject.provide(item, newScope);
+function ExternalScopeProvider({
+    children,
+    scope,
+    provide,
+}: {
+    children: React.ReactNode;
+    scope: Scope;
+    provide?: ProvideOptions<any>[];
+}) {
+    // Однократно выполняем provide-операции в переданный scope.
+    useConstant(() => {
+        if (provide && provide.length > 0) {
+            scope.runInScope(() => {
+                provide.forEach((item) => {
+                    inject.provide(item, scope);
+                });
             });
-        });
-
-        return newScope;
-    }, [keyName]);
-
-    useSafeMount(() => {
-        scope.init();
-        return () => {
-            scope.dispose();
-        };
-    });
+        }
+        return null;
+    }, [scope]);
 
     const ReactContext = getReactContext();
-
     return <ReactContext.Provider value={scope}>{children}</ReactContext.Provider>;
+}
+
+export function DiScopeProvider(props: DiScopeProviderProps) {
+    if (props.scope) {
+        return (
+            <ExternalScopeProvider scope={props.scope} provide={props.provide}>
+                {props.children}
+            </ExternalScopeProvider>
+        );
+    }
+    return (
+        <InternalScopeProvider keyName={props.keyName} provide={props.provide}>
+            {props.children}
+        </InternalScopeProvider>
+    );
 }

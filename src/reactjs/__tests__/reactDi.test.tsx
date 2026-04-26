@@ -3,7 +3,7 @@ import React from "react";
 import { Subject } from "rxjs";
 
 import { inject, injectable, Scope } from "@/core";
-import { DiScopeProvider, setupReactDi } from "@/reactjs";
+import { DiScopeProvider, setupReactDi, useScope } from "@/reactjs";
 
 // --- Helper classes ---
 
@@ -249,5 +249,129 @@ describe("reactDi", () => {
         await act(() => new Promise((r) => setTimeout(r, 10)));
 
         expect(destroyedCallback).toHaveBeenCalledOnce();
+    });
+
+    // T61: DiScopeProvider with external scope passes it via context
+    it("T61: DiScopeProvider with external scope prop uses it as context value", async () => {
+        let externalScope: Scope | null = null;
+        let consumedScope: Scope | null = null;
+
+        function Outer() {
+            externalScope = useScope({ keyName: "external" });
+            return (
+                <DiScopeProvider scope={externalScope}>
+                    <Consumer />
+                </DiScopeProvider>
+            );
+        }
+
+        function Consumer() {
+            consumedScope = Scope.getCurrentScope();
+            return null;
+        }
+
+        render(<Outer />);
+
+        expect(consumedScope).toBe(externalScope);
+    });
+
+    // T62: external scope's instances pre-provided via inject.provide are visible to children
+    it("T62: instances pre-provided via inject.provide on external scope are visible to children", async () => {
+        let outerInstance: ScopedService | null = null;
+        let innerInstance: ScopedService | null = null;
+
+        function Outer() {
+            const scope = useScope();
+            outerInstance = inject.provide(ScopedService, scope);
+            return (
+                <DiScopeProvider scope={scope}>
+                    <Inner />
+                </DiScopeProvider>
+            );
+        }
+
+        function Inner() {
+            innerInstance = inject(ScopedService);
+            return null;
+        }
+
+        render(<Outer />);
+        await act(() => new Promise((r) => setTimeout(r, 10)));
+
+        expect(outerInstance).toBeInstanceOf(ScopedService);
+        expect(innerInstance).toBe(outerInstance);
+    });
+
+    // T63: external scope — provider does not double-init
+    it("T63: external scope — provider does not call init() a second time", async () => {
+        let scope: Scope | null = null;
+        const initSpy = vi.fn();
+
+        function Outer() {
+            scope = useScope();
+            scope.init$!.subscribe(initSpy);
+            return (
+                <DiScopeProvider scope={scope}>
+                    <span>x</span>
+                </DiScopeProvider>
+            );
+        }
+
+        render(<Outer />);
+        await act(() => new Promise((r) => setTimeout(r, 10)));
+
+        // useScope owns lifecycle; provider must not re-init
+        expect(initSpy).toHaveBeenCalledOnce();
+    });
+
+    // T64: external scope — provider does not double-dispose
+    it("T64: external scope — provider does not call dispose() a second time", async () => {
+        let scope: Scope | null = null;
+        const destroyedSpy = vi.fn();
+
+        function Outer() {
+            scope = useScope();
+            scope.destroyed$!.subscribe(destroyedSpy);
+            return (
+                <DiScopeProvider scope={scope}>
+                    <span>x</span>
+                </DiScopeProvider>
+            );
+        }
+
+        const { unmount } = render(<Outer />);
+        await act(() => new Promise((r) => setTimeout(r, 10)));
+
+        unmount();
+        await act(() => new Promise((r) => setTimeout(r, 10)));
+
+        expect(destroyedSpy).toHaveBeenCalledOnce();
+    });
+
+    // T65: external scope + provide prop — services are provisioned into the external scope
+    it("T65: external scope + provide prop — services are provisioned into the passed scope", async () => {
+        let externalScope: Scope | null = null;
+        let consumed: ScopedServiceA | null = null;
+
+        function Outer() {
+            externalScope = useScope();
+            return (
+                <DiScopeProvider scope={externalScope} provide={[ScopedServiceA]}>
+                    <Inner />
+                </DiScopeProvider>
+            );
+        }
+
+        function Inner() {
+            consumed = inject(ScopedServiceA);
+            return null;
+        }
+
+        render(<Outer />);
+        await act(() => new Promise((r) => setTimeout(r, 10)));
+
+        expect(consumed).toBeInstanceOf(ScopedServiceA);
+        // The instance must live in the external scope
+        expect(externalScope!.getInstance(ScopedServiceA)).toBe(consumed);
     });
 });

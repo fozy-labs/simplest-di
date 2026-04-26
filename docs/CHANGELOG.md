@@ -7,6 +7,15 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-26
+
+### Добавлено
+
+- Хук `useScope({ keyName?, provide? })` для React: создаёт scoped `Scope` в текущем компоненте и владеет его жизненным циклом (`init`/`dispose` через `useSafeMount`)
+- Опциональный prop `scope` у `DiScopeProvider`: позволяет передать заранее созданный через `useScope` scope. Провайдер пробрасывает его в React-контекст и не управляет жизненным циклом
+- При одновременной передаче `scope` и `provide` опция `provide` выполняется в переданный scope
+- Паттерн "parent-side inject": `inject.provide(Token, scope)` в render-фазе родителя плюс `<DiScopeProvider scope={scope}>` для детей
+
 ## [0.2.4] - 2026-04-23
 
 ### Исправлено

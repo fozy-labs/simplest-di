@@ -32,6 +32,7 @@ React-компонент, создающий дочерний скоуп в Reac
 | `children` | `React.ReactNode` | Дочерние элементы |
 | `keyName` | `string?` | Имя скоупа. При изменении скоуп пересоздаётся |
 | `provide` | `ProvideOptions<any>[]?` | Массив сервисов для регистрации в скоупе |
+| `scope` | `Scope?` | Внешний scope (созданный через [`useScope`](#usescope)). Если задан — провайдер использует его и **не** управляет жизненным циклом (init/dispose). Опция `provide` (если задана) выполняется в этот переданный scope |
 
 ### Базовый пример
 
@@ -58,6 +59,58 @@ function App() {
     );
 }
 ```
+
+## `useScope`
+
+Хук, который создаёт и владеет жизненным циклом дочернего `Scope` **в текущем компоненте**. Используется, когда родительскому компоненту нужно получить инстанс из scope **до** монтирования `DiScopeProvider` (например, чтобы прочитать данные стора в render-фазе родителя). Парный хук к `<DiScopeProvider scope={scope}>`.
+
+### Сигнатура
+
+```typescript
+function useScope(options?: { keyName?: string; provide?: ProvideOptions<any>[] }): Scope;
+```
+
+- Родителем нового scope становится текущий scope из React-контекста (или `null` на верхнем уровне).
+- Возвращаемый scope **стабилен** между рендерами; пересоздаётся только при изменении `keyName`.
+- `init$` фаерится после mount; `destroyed$` — после unmount (через `useSafeMount`).
+- Если задана опция `provide`, перечисленные сервисы инстанцируются в новом scope при первом рендере.
+
+### Пример: parent-side доступ к scoped store
+
+```tsx
+import { DiScopeProvider, inject, injectable, useScope } from '@fozy-labs/simplest-di';
+
+@injectable({ lifetime: 'SCOPED', requireProvide: false })
+class ChannelStore {
+    messages: string[] = [];
+}
+
+function ChannelPage() {
+    // Создаём scope в этом компоненте — он будет родителем для children
+    const scope = useScope({ keyName: 'channel' });
+
+    // Получаем инстанс из созданного scope ПРЯМО в render-фазе родителя.
+    // inject(ChannelStore) здесь не сработал бы: контекст ещё не пробросился вниз.
+    const store = inject.provide(ChannelStore, scope);
+
+    return (
+        <DiScopeProvider scope={scope}>
+            <ChannelHeader title={store.messages.length} />
+            <ChannelBody />
+        </DiScopeProvider>
+    );
+}
+
+function ChannelBody() {
+    // Из дочернего дерева тот же ChannelStore доступен обычным inject()
+    const store = inject(ChannelStore);
+    return <ul>{store.messages.map((m) => <li key={m}>{m}</li>)}</ul>;
+}
+```
+
+> **Важно:** когда `<DiScopeProvider scope={...}>` получает внешний scope, он
+> **не вызывает** `init()`/`dispose()` — этим управляет `useScope`. Двойной
+> инициализации/деструкции не происходит.
 
 ## Контракты в React
 

@@ -10,6 +10,7 @@ import {
     resetRegistry,
     Scope,
     setupReactDi,
+    useScope,
 } from "@/index";
 
 // --- Tests ---
@@ -89,6 +90,11 @@ describe("Integration: exports", () => {
         it("DiScopeProvider is a function", () => {
             expect(DiScopeProvider).toBeDefined();
             expect(typeof DiScopeProvider).toBe("function");
+        });
+
+        it("useScope is a function", () => {
+            expect(useScope).toBeDefined();
+            expect(typeof useScope).toBe("function");
         });
     });
 

@@ -3,7 +3,7 @@ import React from "react";
 import { Subject } from "rxjs";
 
 import { inject, injectable, resetRegistry, Scope } from "@/core";
-import { DiScopeProvider, setupReactDi } from "@/reactjs";
+import { DiScopeProvider, setupReactDi, useScope } from "@/reactjs";
 
 // --- Helper utilities ---
 
@@ -354,5 +354,65 @@ describe("Integration: scoped lifecycle", () => {
 
         expect(resolved).toBeInstanceOf(Second);
         expect(resolved!.one).toBeInstanceOf(One);
+    });
+
+    // T81: useScope + inject.provide + DiScopeProvider scope={...} — full user-request scenario
+    it("T81: parent uses inject.provide(token, scope) and shares it with children via DiScopeProvider scope={scope}", async () => {
+        const initFn = vi.fn();
+        const cleanupFn = vi.fn();
+
+        @injectable({
+            lifetime: "SCOPED",
+            requireProvide: false,
+            onScopeInit() {
+                initFn();
+                return cleanupFn;
+            },
+        })
+        class ChannelStore {
+            id = Math.random();
+            value = "initial";
+        }
+
+        let parentInstance: ChannelStore | null = null;
+        let childInstance: ChannelStore | null = null;
+        let parentScope: Scope | null = null;
+        let childScope: Scope | null = null;
+
+        function ChannelPage() {
+            parentScope = useScope({ keyName: "channel" });
+            parentInstance = inject.provide(ChannelStore, parentScope);
+            return (
+                <DiScopeProvider scope={parentScope}>
+                    <ChildConsumer />
+                </DiScopeProvider>
+            );
+        }
+
+        function ChildConsumer() {
+            childScope = Scope.getCurrentScope();
+            childInstance = inject(ChannelStore);
+            return null;
+        }
+
+        const { unmount } = render(<ChannelPage />);
+
+        // Same instance available in render-phase parent and as children resolve from context
+        expect(parentInstance).toBeInstanceOf(ChannelStore);
+        expect(childInstance).toBe(parentInstance);
+        expect(childScope).toBe(parentScope);
+
+        // onScopeInit not yet fired — useSafeMount uses microtask
+        expect(initFn).not.toHaveBeenCalled();
+
+        await tick();
+
+        expect(initFn).toHaveBeenCalledOnce();
+        expect(cleanupFn).not.toHaveBeenCalled();
+
+        unmount();
+        await tick();
+
+        expect(cleanupFn).toHaveBeenCalledOnce();
     });
 });
