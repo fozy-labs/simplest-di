@@ -184,6 +184,32 @@ const auth = inject(AuthService, scope); // OK
 
 Для scoped-контрактов правило немного отличается: если контракт уже привязан через `contract.bind(Impl)`, это само по себе считается регистрацией. Отдельный `inject.provide(contract, scope)` не нужен, но активный `Scope` всё равно обязателен.
 
+## Теги скоупов (Scope Tags)
+
+Для точной регистрации scoped-зависимости в конкретном контейнере можно использовать теги.
+
+```typescript
+import { inject, Scope } from '@fozy-labs/simplest-di';
+
+const PRIVATE = inject.createTag();
+
+const root = new Scope(null, 'root');
+const privateScope = new Scope(root, 'private', [PRIVATE]);
+const nested = new Scope(privateScope, 'nested');
+
+nested.runInScope(() => {
+    // Регистрирует зависимость не в nested, а в ближайшем scope с тегом PRIVATE
+    inject.provide(UserSession, PRIVATE);
+});
+```
+
+Правила:
+
+- `inject.createTag()` создаёт уникальный тег.
+- `inject.provide(token, tag)` ищет ближайший текущему контексту scope, у которого есть этот тег.
+- Если tagged-scope не найден, будет выброшена ошибка отсутствующего active scope.
+- При обычном `inject.provide(token, scope)` поведение остаётся прежним.
+
 ## `onScopeInit` — жизненный цикл скоупа
 
 Callback `onScopeInit` вызывается при инициализации скоупа (`scope.init()`). Если callback возвращает функцию, она будет вызвана при уничтожении скоупа (`scope.dispose()`).

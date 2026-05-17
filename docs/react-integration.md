@@ -32,6 +32,7 @@ React-компонент, создающий дочерний скоуп в Reac
 | `children` | `React.ReactNode` | Дочерние элементы |
 | `keyName` | `string?` | Имя скоупа. При изменении скоуп пересоздаётся |
 | `provide` | `ProvideOptions<any>[]?` | Массив сервисов для регистрации в скоупе |
+| `tags` | `ScopeTag[]?` | Теги, которые будут присвоены созданному провайдером scope |
 | `scope` | `Scope?` | Внешний scope (созданный через [`useScope`](#usescope)). Если задан — провайдер использует его и **не** управляет жизненным циклом (init/dispose). Опция `provide` (если задана) выполняется в этот переданный scope |
 
 ### Базовый пример
@@ -67,13 +68,40 @@ function App() {
 ### Сигнатура
 
 ```typescript
-function useScope(options?: { keyName?: string; provide?: ProvideOptions<any>[] }): Scope;
+function useScope(options?: { keyName?: string; provide?: ProvideOptions<any>[]; tags?: ScopeTag[] }): Scope;
 ```
 
 - Родителем нового scope становится текущий scope из React-контекста (или `null` на верхнем уровне).
 - Возвращаемый scope **стабилен** между рендерами; пересоздаётся только при изменении `keyName`.
 - `init$` фаерится после mount; `destroyed$` — после unmount (через `useSafeMount`).
 - Если задана опция `provide`, перечисленные сервисы инстанцируются в новом scope при первом рендере.
+- Если задана опция `tags`, теги назначаются созданному scope и могут быть использованы в `inject.provide(token, tag)`.
+
+### Пример: tagged scope и адресная регистрация
+
+```tsx
+import { DiScopeProvider, inject, injectable, useScope } from '@fozy-labs/simplest-di';
+
+const PRIVATE = inject.createTag();
+
+@injectable({ lifetime: 'SCOPED', requireProvide: true })
+class PrivateStore {
+    count = 0;
+}
+
+function Page() {
+    const scope = useScope({ keyName: 'private-page', tags: [PRIVATE] });
+
+    // Даже из вложенного child scope попадём в ближайший tagged scope
+    inject.provide(PrivateStore, PRIVATE);
+
+    return (
+        <DiScopeProvider scope={scope}>
+            <Content />
+        </DiScopeProvider>
+    );
+}
+```
 
 ### Пример: parent-side доступ к scoped store
 

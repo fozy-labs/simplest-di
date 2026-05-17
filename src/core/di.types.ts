@@ -3,6 +3,7 @@ import { INJECTABLE_OPTIONS, INJECTING_INSTANCE } from "@/core/symbols";
 export type Constructor<T = any> = new (...args: any[]) => T;
 export type InjectedInstance<T> = T extends Constructor<infer Instance> ? Instance : T;
 export type ScopeToken = object;
+export type ScopeTag = object;
 
 export type InjectableOptionsSymbol = typeof INJECTABLE_OPTIONS;
 export type InjectingInstanceSymbol = typeof INJECTING_INSTANCE;

@@ -374,4 +374,46 @@ describe("reactDi", () => {
         // The instance must live in the external scope
         expect(externalScope!.getInstance(ScopedServiceA)).toBe(consumed);
     });
+
+    it("T66: provide with tag resolves nearest tagged scope in tree", async () => {
+        const PRIVATE = inject.createTag();
+        let rootScope: Scope | null = null;
+        let taggedScope: Scope | null = null;
+        let created: ScopedService | null = null;
+
+        function RootCapture() {
+            rootScope = Scope.getCurrentScope();
+            return null;
+        }
+
+        function TaggedCapture() {
+            taggedScope = Scope.getCurrentScope();
+            return null;
+        }
+
+        function Consumer() {
+            created = inject.provide(ScopedService, PRIVATE);
+            return null;
+        }
+
+        render(
+            <DiScopeProvider keyName="root">
+                <RootCapture />
+                <DiScopeProvider keyName="private" tags={[PRIVATE]}>
+                    <TaggedCapture />
+                    <DiScopeProvider keyName="nested">
+                        <Consumer />
+                    </DiScopeProvider>
+                </DiScopeProvider>
+            </DiScopeProvider>,
+        );
+
+        await act(() => new Promise((r) => setTimeout(r, 10)));
+
+        expect(created).toBeInstanceOf(ScopedService);
+        expect(taggedScope).not.toBeNull();
+        expect(rootScope).not.toBeNull();
+        expect(taggedScope!.getInstance(ScopedService)).toBe(created);
+        expect(rootScope!.getInstance(ScopedService)).toBeNull();
+    });
 });

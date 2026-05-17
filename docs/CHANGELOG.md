@@ -5,7 +5,14 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/),
 проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
-## [Unreleased]
+## [0.4.0] - 2026-17-05
+
+### Добавлено
+
+- `inject.createTag()` для создания уникальных тегов контейнеров (scope)
+- Поддержка `inject.provide(token, tag)` для адресной регистрации в ближайшем tagged-scope
+- Поддержка `tags` в `useScope({ ... })` и `<DiScopeProvider tags={...}>`
+
 
 ## [0.3.0] - 2026-04-26
 

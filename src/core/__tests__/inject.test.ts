@@ -8,6 +8,7 @@ import {
     NonCompatibleParentError,
     resetRegistry,
     Scope,
+    ScopeTag,
 } from "@/core";
 import { ContractAlreadyResolvedError, UnboundContractError } from "@/core/errors";
 
@@ -38,8 +39,8 @@ class ScopedStrictService {
     id = Math.random();
 }
 
-function createScope(parent?: Scope | null, name?: string): Scope {
-    const scope = new Scope(parent ?? null, name);
+function createScope(parent?: Scope | null, name?: string, tags?: ScopeTag[]): Scope {
+    const scope = new Scope(parent ?? null, name, tags);
     scope.init$ = new Subject<void>();
     scope.destroyed$ = new Subject<void>();
     return scope;
@@ -477,6 +478,31 @@ describe("inject", () => {
         }
 
         expect(() => inject(OuterSingleton)).toThrow(NonCompatibleParentError);
+    });
+
+    it("T51: createTag resolves nearest tagged scope for provide", () => {
+        const PRIVATE = inject.createTag();
+        const root = createScope(null, "root");
+        const tagged = createScope(root, "tagged", [PRIVATE]);
+        const nested = createScope(tagged, "nested");
+
+        nested.runInScope(() => {
+            const instance = inject.provide(ScopedService, PRIVATE);
+
+            expect(inject(ScopedService, tagged)).toBe(instance);
+            expect(inject(ScopedService, nested)).toBe(instance);
+            expect(root.getInstance(ScopedService)).toBeNull();
+            expect(tagged.getInstance(ScopedService)).toBe(instance);
+        });
+    });
+
+    it("T52: createTag throws when no tagged scope is found", () => {
+        const PRIVATE = inject.createTag();
+        const root = createScope(null, "root");
+
+        root.runInScope(() => {
+            expect(() => inject.provide(ScopedService, PRIVATE)).toThrow(/No active scope found/);
+        });
     });
 });
 

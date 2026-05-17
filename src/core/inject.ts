@@ -9,14 +9,39 @@ import { INJECTING_INSTANCE } from "@/core/symbols";
 const registry = new Map<unknown, unknown>();
 
 type InjectFn = {
-    <T extends Constructor>(arg: T | InjectOptions<T>, scope?: Scope): InjectedInstance<T>;
-    <T>(arg: DefinedContract<T> | InjectOptions<T>, scope?: Scope): T;
-    provide<T extends Constructor>(token: T | InjectOptions<T>, scope?: Scope): InjectedInstance<T>;
-    provide<T>(token: DefinedContract<T> | InjectOptions<T>, scope?: Scope): T;
+    <T extends Constructor>(arg: T | InjectOptions<T>, scope?: Scope | InjectTag): InjectedInstance<T>;
+    <T>(arg: DefinedContract<T> | InjectOptions<T>, scope?: Scope | InjectTag): T;
+    provide<T extends Constructor>(token: T | InjectOptions<T>, scope?: Scope | InjectTag): InjectedInstance<T>;
+    provide<T>(token: DefinedContract<T> | InjectOptions<T>, scope?: Scope | InjectTag): T;
     define<T>(name: string): DefinedContract<T>;
+    createTag(): InjectTag;
 };
 
-const injectImpl = function <T>(arg: ProvideOptions<T>, scope?: Scope): InjectedInstance<T> {
+export class InjectTag {
+    findInCurrentScope(scope = Scope.getCurrentScope()): Scope | null {
+        if (!scope) return null;
+
+        if (scope.hasTag(this)) {
+            return scope;
+        }
+
+        return this.findInCurrentScope(scope.parent);
+    }
+}
+
+function getScope(ctx: Scope | InjectTag | null | undefined): Scope | null {
+    if (!ctx) {
+        return Scope.getCurrentScope();
+    }
+
+    if (ctx instanceof InjectTag) {
+        return ctx.findInCurrentScope();
+    }
+
+    return ctx;
+}
+
+const injectImpl = function <T>(arg: ProvideOptions<T>, ctx?: Scope | InjectTag): InjectedInstance<T> {
     const options = getInjectOptions(arg);
     const lifetime = options.lifetime;
     const token = options.token;
@@ -61,7 +86,7 @@ const injectImpl = function <T>(arg: ProvideOptions<T>, scope?: Scope): Injected
             throw new NonCompatibleParentError(options.name, "SINGLETON");
         }
 
-        const currentScope = scope ?? Scope.getCurrentScope();
+        const currentScope = getScope(ctx);
 
         if (!currentScope) {
             throw new Error(`No active scope found for scoped injection of ${options.name}`);
@@ -124,7 +149,7 @@ const injectImpl = function <T>(arg: ProvideOptions<T>, scope?: Scope): Injected
     throw new Error(`Unknown injection lifetime: ${lifetime}`);
 } as InjectFn;
 
-injectImpl.provide = function <T>(token: ProvideOptions<T>, scope?: Scope): InjectedInstance<T> {
+injectImpl.provide = function <T>(token: ProvideOptions<T>, scope?: Scope | InjectTag): InjectedInstance<T> {
     const options = getInjectOptions(token);
     const lifetime = options.lifetime;
 
@@ -145,6 +170,10 @@ injectImpl.provide = function <T>(token: ProvideOptions<T>, scope?: Scope): Inje
 
 injectImpl.define = function <T>(name: string): DefinedContract<T> {
     return createDefinedContract<T>(name);
+};
+
+injectImpl.createTag = function (): InjectTag {
+    return new InjectTag();
 };
 
 export const inject = injectImpl;

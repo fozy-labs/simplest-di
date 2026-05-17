@@ -1,6 +1,6 @@
 import React from "react";
 
-import { ProvideOptions } from "@/core/di.types";
+import { ProvideOptions, ScopeTag } from "@/core/di.types";
 import { inject } from "@/core/inject";
 import { Scope } from "@/core/Scope";
 
@@ -24,6 +24,7 @@ export type DiScopeProviderProps = {
     children: React.ReactNode;
     keyName?: string;
     provide?: ProvideOptions<any>[];
+    tags?: ScopeTag[];
     /**
      * Внешне-управляемый Scope, созданный через {@link useScope}.
      * Если задан — провайдер не создаёт новый scope и не управляет его жизненным циклом
@@ -37,12 +38,14 @@ function InternalScopeProvider({
     children,
     keyName,
     provide,
+    tags,
 }: {
     children: React.ReactNode;
     keyName?: string;
     provide?: ProvideOptions<any>[];
+    tags?: ScopeTag[];
 }) {
-    const scope = useScope({ keyName, provide });
+    const scope = useScope({ keyName, provide, tags });
     const ReactContext = getReactContext();
     return <ReactContext.Provider value={scope}>{children}</ReactContext.Provider>;
 }
@@ -81,7 +84,7 @@ export function DiScopeProvider(props: DiScopeProviderProps) {
         );
     }
     return (
-        <InternalScopeProvider keyName={props.keyName} provide={props.provide}>
+        <InternalScopeProvider keyName={props.keyName} provide={props.provide} tags={props.tags}>
             {props.children}
         </InternalScopeProvider>
     );

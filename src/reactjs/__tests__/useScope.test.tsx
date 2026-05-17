@@ -209,4 +209,19 @@ describe("useScope", () => {
 
         expect(destroyFn).toHaveBeenCalledOnce();
     });
+
+    it("T99: useScope applies tags to created scope", () => {
+        const PRIVATE = inject.createTag();
+        let scope: Scope | null = null;
+
+        function Component() {
+            scope = useScope({ tags: [PRIVATE] });
+            return null;
+        }
+
+        render(<Component />);
+
+        expect(scope).not.toBeNull();
+        expect(scope!.hasTag(PRIVATE)).toBe(true);
+    });
 });

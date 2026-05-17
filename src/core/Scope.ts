@@ -1,6 +1,6 @@
 import { Subject } from "rxjs";
 
-import { InjectingInstanceSymbol, ScopeToken } from "@/core/di.types";
+import { InjectingInstanceSymbol, ScopeTag, ScopeToken } from "@/core/di.types";
 
 export class Scope {
     private _isInitialized: boolean = false;
@@ -14,6 +14,7 @@ export class Scope {
     constructor(
         public parent: Scope | null = null,
         public name: string | undefined = undefined,
+        public tags: ScopeTag[] = [],
     ) {}
 
     getInstance<T>(token: ScopeToken): T | null | InjectingInstanceSymbol {
@@ -54,6 +55,10 @@ export class Scope {
         } finally {
             (Scope.getCurrentScope as any) = getPreviousScope;
         }
+    }
+
+    hasTag(tag: ScopeTag): boolean {
+        return this.tags.includes(tag);
     }
 
     static getCurrentScope: () => Scope | null = () => null;

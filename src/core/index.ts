@@ -5,12 +5,13 @@ export type {
     InjectOptions,
     InjectComputedOptions,
     ProvideOptions,
+    ScopeTag,
     Injectable,
     InjectableOptionsSymbol,
     InjectingInstanceSymbol,
 } from "./di.types";
 
-export { inject, resetRegistry } from "./inject";
+export { inject, InjectTag, resetRegistry } from "./inject";
 export { injectable } from "./injectable";
 export { Scope } from "./Scope";
 export { getInjectorName } from "./getInjectorName";

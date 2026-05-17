@@ -1,7 +1,7 @@
 import React from "react";
 import { Subject } from "rxjs";
 
-import { ProvideOptions } from "@/core/di.types";
+import { ProvideOptions, ScopeTag } from "@/core/di.types";
 import { inject } from "@/core/inject";
 import { Scope } from "@/core/Scope";
 
@@ -12,6 +12,7 @@ import { useSafeMount } from "./useSafeMount";
 export type UseScopeOptions = {
     keyName?: string;
     provide?: ProvideOptions<any>[];
+    tags?: ScopeTag[];
 };
 
 /**
@@ -27,11 +28,11 @@ export type UseScopeOptions = {
  * через `inject.provide(Token, scope)`.
  */
 export function useScope(options: UseScopeOptions = {}): Scope {
-    const { keyName, provide } = options;
+    const { keyName, provide, tags } = options;
     const parentScope = React.use(getReactContext());
 
     const scope = useConstant(() => {
-        const newScope = new Scope(parentScope, keyName);
+        const newScope = new Scope(parentScope, keyName, tags);
         newScope.init$ = new Subject<void>();
         newScope.destroyed$ = new Subject<void>();
 

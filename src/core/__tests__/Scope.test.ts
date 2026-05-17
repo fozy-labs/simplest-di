@@ -132,4 +132,18 @@ describe("Scope", () => {
 
         expect(scope.getInstance(token)).toBe(INJECTING_INSTANCE);
     });
+
+    it("T47: hasTag returns true for existing tag", () => {
+        const privateTag = {};
+        const scope = new Scope(null, "tagged", [privateTag]);
+
+        expect(scope.hasTag(privateTag)).toBe(true);
+    });
+
+    it("T48: hasTag returns false for missing tag", () => {
+        const privateTag = {};
+        const scope = new Scope(null, "untagged");
+
+        expect(scope.hasTag(privateTag)).toBe(false);
+    });
 });
