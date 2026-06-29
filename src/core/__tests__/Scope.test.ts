@@ -146,4 +146,57 @@ describe("Scope", () => {
 
         expect(scope.hasTag(privateTag)).toBe(false);
     });
+
+    // T49: constructor registers the scope in parent.children
+    it("T49: constructor registers the scope in parent.children", () => {
+        const parent = new Scope(null, "parent");
+        const child = new Scope(parent, "child");
+
+        expect(parent.children.has(child)).toBe(true);
+    });
+
+    // T50: dispose cascades to descendants, children before parents
+    it("T50: dispose cascades to descendants (children before parents)", () => {
+        const a = new Scope(null, "a");
+        const b = new Scope(a, "b");
+        const c = new Scope(b, "c");
+
+        a.destroyed$ = new Subject<void>();
+        b.destroyed$ = new Subject<void>();
+        c.destroyed$ = new Subject<void>();
+
+        const order: string[] = [];
+        a.destroyed$.subscribe(() => order.push("a"));
+        b.destroyed$.subscribe(() => order.push("b"));
+        c.destroyed$.subscribe(() => order.push("c"));
+
+        a.dispose();
+
+        expect(order).toEqual(["c", "b", "a"]);
+        expect(a.children.size).toBe(0);
+    });
+
+    // T51: disposing a child directly unregisters it from the parent
+    it("T51: direct child dispose unregisters it from parent.children", () => {
+        const parent = new Scope(null, "parent");
+        const child = new Scope(parent, "child");
+
+        child.dispose();
+
+        expect(parent.children.has(child)).toBe(false);
+    });
+
+    // T52: dispose is idempotent and marks isDisposed
+    it("T52: dispose is idempotent and sets isDisposed", () => {
+        const scope = new Scope(null, "test");
+        scope.destroyed$ = new Subject<void>();
+        const callback = vi.fn();
+        scope.destroyed$.subscribe(callback);
+
+        scope.dispose();
+        scope.dispose();
+
+        expect(callback).toHaveBeenCalledOnce();
+        expect(scope.isDisposed).toBe(true);
+    });
 });

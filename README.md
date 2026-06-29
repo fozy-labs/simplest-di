@@ -96,6 +96,7 @@ function App() {
 - 🔄 **Три режима жизненного цикла** — `SINGLETON`, `TRANSIENT`, `SCOPED`
 - 🧩 **Контракты интерфейсов** — `inject.define<T>(name)` для выбора реализации без нового named export
 - 🌳 **Иерархия скоупов** — Родительские и дочерние скоупы с наследованием зависимостей
+- 🗂️ **Хранилище скоупов** _(unstable)_ — `unstable_createScopesStore()` для управления жизненным циклом скоупов вне React (роутер, keep-alive) с каскадным `dispose`
 - ⚛️ **React-интеграция** — `DiScopeProvider` для управления скоупами в React-дереве
 - 🎨 **Stage 3 декораторы** — TC39 декораторы, без `experimentalDecorators`
 - 🧪 **Изоляция тестов** — `resetRegistry()` для очистки синглтон-состояния между тестами
@@ -104,7 +105,7 @@ function App() {
 
 ## 📚 Документация
 
-- [**Концепции DI**](./docs/concepts.md) — жизненные циклы, скоупы, контракты, обнаружение циклов
+- [**Концепции DI**](./docs/concepts.md) — жизненные циклы, скоупы, хранилище скоупов, контракты, обнаружение циклов
 - [**React-интеграция**](./docs/react-integration.md) — setupReactDi, DiScopeProvider, scoped-контракты
 - [**CHANGELOG**](./docs/CHANGELOG.md) — история изменений
 
@@ -121,6 +122,7 @@ function App() {
 | `inject.createTag` | Метод | Создаёт тег для адресной регистрации в tagged-scope |
 | `injectable` | Декоратор | Помечает класс метаданными DI (lifetime, опции) |
 | `Scope` | Класс | Контейнер скоупа с иерархией и жизненным циклом |
+| `unstable_createScopesStore` | Функция | ⚠️ _unstable_. Императивное хранилище скоупов по ключу: жизненный цикл вне React, каскадный `dispose` |
 | `resetRegistry` | Функция | Очистка синглтон-реестра (для тестов) |
 | `getInjectorName` | Функция | Получение имени родительского инжектора (отладка) |
 
@@ -150,6 +152,9 @@ function App() {
 | `InjectOptions<T>` | Полный дескриптор для ручной регистрации |
 | `InjectComputedOptions<T>` | Нормализованная форма `InjectOptions` |
 | `ProvideOptions<T>` | Тип аргумента `inject()` / `inject.provide()` |
+| `ScopesStore` | Интерфейс хранилища скоупов (`createScopesStore`) |
+| `ScopesStoreOptions` | Опции `createScopesStore({ parent })` |
+| `AcquireOptions` | Опции `store.acquire(key, { parent, name, tags, provide })` |
 | `Injectable` | Тип класса с метаданными `@injectable()` |
 | `InjectableOptionsSymbol` | Тип символа `INJECTABLE_OPTIONS` |
 | `InjectingInstanceSymbol` | Тип символа `INJECTING_INSTANCE` |

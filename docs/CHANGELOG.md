@@ -5,6 +5,19 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/),
 проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
+
+## [Unreleased]
+
+### Добавлено
+
+- `unstable_createScopesStore()` — императивное хранилище `Scope`-ов, адресуемых по строковому ключу. См. раздел [«Хранилище скоупов»](./concepts.md)
+- `Scope` отслеживает дочерние скоупы (`children`) и имеет геттер `isDisposed`
+
+### Изменено
+
+- `Scope.dispose()` каскадно уничтожает дочерние скоупы (снизу вверх — дети раньше родителя) и стал идемпотентным; конструктор регистрирует скоуп в `parent.children`. Важно: `children` — сильные ссылки (родитель удерживает детей до их `dispose`), поэтому уничтожайте скоупы явно — раньше осиротевший дочерний скоуп собирался GC сам
+
+
 ## [0.4.0] - 2026-17-05
 
 ### Добавлено
@@ -23,17 +36,20 @@
 - При одновременной передаче `scope` и `provide` опция `provide` выполняется в переданный scope
 - Паттерн "parent-side inject": `inject.provide(Token, scope)` в render-фазе родителя плюс `<DiScopeProvider scope={scope}>` для детей
 
+
 ## [0.2.4] - 2026-04-23
 
 ### Исправлено
 
 - Scoped-зависимости, перечисленные в `DiScopeProvider provide`, теперь корректно разрешают вложенные scoped-инъекции в том же scope
 
+
 ## [0.2.2] - 2026-03-24
 
 ### Исправлено
 
 - Неверные импорты в собранном проекте (из-за `tsc-alias`)
+
 
 ## [0.2.1] - 2026-03-22
 
@@ -48,6 +64,7 @@
 - React-документация уточняет, что scoped-контракты продолжают работать через `setupReactDi()` и `DiScopeProvider`, без нового React-specific API
 - Unit-тесты ядра и React перенесены в `src/core/__tests__/` и `src/react/__tests__/`, а интеграционные проверки дополнены root-export и React scoped-contract regression coverage
 
+
 ## [0.2.0] - 2026-03-20
 
 ### Добавлено
@@ -61,3 +78,12 @@
 - `getInjectorName()` — утилита для отладки
 - Полная типизация (TypeScript ≥ 5.0, Stage 3 декораторы)
 - Документация: README, концепции DI, React-интеграция, миграция
+
+[Unreleased]: https://github.com/fozy-labs/simplest-di/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/fozy-labs/simplest-di/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/fozy-labs/simplest-di/compare/v0.2.4...v0.3.0
+[0.2.4]: https://github.com/fozy-labs/simplest-di/compare/v0.2.2...v0.2.4
+[0.2.2]: https://github.com/fozy-labs/simplest-di/compare/v0.2.1...v0.2.2
+[0.2.1]: https://github.com/fozy-labs/simplest-di/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/fozy-labs/simplest-di/releases/tag/v0.2.0
+

@@ -4,18 +4,32 @@ import { InjectingInstanceSymbol, ScopeTag, ScopeToken } from "@/core/di.types";
 
 export class Scope {
     private _isInitialized: boolean = false;
+    private _isDisposed: boolean = false;
 
     get isInitialized(): boolean {
         return this._isInitialized;
     }
 
+    get isDisposed(): boolean {
+        return this._isDisposed;
+    }
+
     instances = new WeakMap<ScopeToken, unknown>();
+
+    /**
+     * Дочерние скоупы. Заполняется конструктором ребёнка (см. ниже) и
+     * используется каскадным {@link dispose}. Это сильные ссылки: родитель
+     * удерживает детей до их `dispose` — не забывайте уничтожать скоупы.
+     */
+    children = new Set<Scope>();
 
     constructor(
         public parent: Scope | null = null,
         public name: string | undefined = undefined,
         public tags: ScopeTag[] = [],
-    ) {}
+    ) {
+        parent?.children.add(this);
+    }
 
     getInstance<T>(token: ScopeToken): T | null | InjectingInstanceSymbol {
         if (this.instances.has(token)) {
@@ -43,6 +57,18 @@ export class Scope {
     }
 
     dispose(): void {
+        if (this._isDisposed) {
+            return;
+        }
+        this._isDisposed = true;
+
+        // Каскад снизу вверх: сначала дочерние скоупы (рекурсивно), затем сам.
+        for (const child of [...this.children]) {
+            child.dispose();
+        }
+        this.children.clear();
+        this.parent?.children.delete(this);
+
         this.destroyed$?.next();
         this.destroyed$?.complete();
     }
