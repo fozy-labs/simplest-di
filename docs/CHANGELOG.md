@@ -8,6 +8,9 @@
 
 ## [Unreleased]
 
+
+## [0.5.0] - 2026-06-29
+
 ### Добавлено
 
 - `unstable_createScopesStore()` — императивное хранилище `Scope`-ов, адресуемых по строковому ключу. См. раздел [«Хранилище скоупов»](./concepts.md)
@@ -79,7 +82,8 @@
 - Полная типизация (TypeScript ≥ 5.0, Stage 3 декораторы)
 - Документация: README, концепции DI, React-интеграция, миграция
 
-[Unreleased]: https://github.com/fozy-labs/simplest-di/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/fozy-labs/simplest-di/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/fozy-labs/simplest-di/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/fozy-labs/simplest-di/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/fozy-labs/simplest-di/compare/v0.2.4...v0.3.0
 [0.2.4]: https://github.com/fozy-labs/simplest-di/compare/v0.2.2...v0.2.4
