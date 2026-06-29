@@ -8,6 +8,11 @@
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-06-29
+
+### Исправлено
+
+- Корректная сборка релиза: артефакт `0.5.0` в npm содержал стейл-`dist` без `createScopesStore` (опубликован вручную без `npm run build`). `0.5.1` публикует правильную сборку тех же изменений — используйте `0.5.1+`.
 
 ## [0.5.0] - 2026-06-29
 
@@ -82,7 +87,8 @@
 - Полная типизация (TypeScript ≥ 5.0, Stage 3 декораторы)
 - Документация: README, концепции DI, React-интеграция, миграция
 
-[Unreleased]: https://github.com/fozy-labs/simplest-di/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/fozy-labs/simplest-di/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/fozy-labs/simplest-di/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/fozy-labs/simplest-di/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/fozy-labs/simplest-di/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/fozy-labs/simplest-di/compare/v0.2.4...v0.3.0
