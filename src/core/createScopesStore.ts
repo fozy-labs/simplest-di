@@ -120,8 +120,17 @@ export function unstable_createScopesStore(options: ScopesStoreOptions = {}): Sc
         acquire(key, acquireOptions = {}) {
             const existing = scopes.get(key);
 
-            if (existing) {
+            if (existing && !existing.isDisposed) {
                 return existing;
+            }
+
+            // Скоуп мог быть уничтожен напрямую (`scope.dispose()`), в обход
+            // `store.dispose(key)` — тогда индекс стора рассинхронизирован и держит
+            // мёртвый экземпляр. Не переиспользуем его: вычищаем ключ и создаём
+            // свежий (паритет с политикой «никакого переиспользования мёртвого
+            // скоупа», см. dispose ниже).
+            if (existing) {
+                scopes.delete(key);
             }
 
             const parent = resolveParent(acquireOptions.parent);
@@ -132,11 +141,21 @@ export function unstable_createScopesStore(options: ScopesStoreOptions = {}): Sc
             const provide = acquireOptions.provide;
 
             if (provide && provide.length > 0) {
-                scope.runInScope(() => {
-                    provide.forEach((item) => {
-                        inject.provide(item, scope);
+                try {
+                    scope.runInScope(() => {
+                        provide.forEach((item) => {
+                            inject.provide(item, scope);
+                        });
                     });
-                });
+                } catch (error) {
+                    // provide бросил: полусозданный скоуп уже подвешен в
+                    // `parent.children` (конструктор Scope добавляет себя к родителю)
+                    // и ещё не попал в индекс стора. Гасим его — dispose снимает
+                    // подвес у родителя и завершает Subject'ы — и пробрасываем ошибку,
+                    // не оставляя за собой утечки/висячих подписок.
+                    scope.dispose();
+                    throw error;
+                }
             }
 
             scopes.set(key, scope);

@@ -5,6 +5,13 @@ class ScopedService {
     id = 42;
 }
 
+@injectable("SCOPED")
+class ExplodingService {
+    constructor() {
+        throw new Error("boom in constructor");
+    }
+}
+
 describe("createScopesStore", () => {
     // --- acquire ---
 
@@ -64,6 +71,18 @@ describe("createScopesStore", () => {
 
         expect(scope.getInstance(ScopedService)).toBeInstanceOf(ScopedService);
         expect(inject(ScopedService, scope)).toBe(scope.getInstance(ScopedService));
+    });
+
+    it("acquire disposes the half-created scope when provide throws (no leak in parent.children)", () => {
+        const root = new Scope(null, "root");
+        const store = createScopesStore({ parent: root });
+
+        expect(() => store.acquire("a", { provide: [ExplodingService] })).toThrow("boom in constructor");
+
+        // Полусозданный скоуп не должен остаться подвешенным в родителе...
+        expect(root.children.size).toBe(0);
+        // ...и не должен попасть в индекс стора.
+        expect(store.has("a")).toBe(false);
     });
 
     // --- get / has / keys ---
@@ -141,6 +160,19 @@ describe("createScopesStore", () => {
         const second = store.acquire("a");
 
         expect(second).not.toBe(first);
+    });
+
+    it("acquire does not hand back a scope disposed directly (bypassing store.dispose)", () => {
+        const store = createScopesStore();
+        const first = store.acquire("a");
+
+        // Уничтожаем напрямую, минуя store.dispose("a"): индекс стора ещё держит ключ.
+        first.dispose();
+
+        const second = store.acquire("a");
+
+        expect(second).not.toBe(first);
+        expect(second.isDisposed).toBe(false);
     });
 
     // --- cascade dispose ---

@@ -90,16 +90,24 @@ class PrivateStore {
 }
 
 function Page() {
+    // Создаём tagged scope и владеем его жизненным циклом.
     const scope = useScope({ keyName: 'private-page', tags: [PRIVATE] });
-
-    // Даже из вложенного child scope попадём в ближайший tagged scope
-    inject.provide(PrivateStore, PRIVATE);
 
     return (
         <DiScopeProvider scope={scope}>
             <Content />
         </DiScopeProvider>
     );
+}
+
+function Content() {
+    // Регистрируем по тегу ИЗ поддерева провайдера: поиск поднимается от
+    // текущего scope вверх до ближайшего с тегом PRIVATE. Из самого Page это
+    // не сработало бы — свежесозданный scope ещё не в React-контексте, и поиск
+    // по тегу шёл бы от родителя (или null), выбрасывая "No active scope found".
+    const store = inject.provide(PrivateStore, PRIVATE);
+
+    return <span>{store.count}</span>;
 }
 ```
 
@@ -266,5 +274,6 @@ function PageLayout({ routeId }: { routeId: string }) {
 
 В React StrictMode компоненты монтируются и размонтируются дважды при разработке. `DiScopeProvider` использует внутренний хук `useSafeMount`, который корректно обрабатывает этот цикл:
 
-- При первом монтировании: `init()` → `dispose()` (StrictMode unmount) → повторный `init()`
-- Скоуп корректно переживает двойной mount/unmount цикл StrictMode
+- `useSafeMount` откладывает `init()` и teardown в микротаску и отменяет «холостую» пару mount/unmount из StrictMode-переигровки. В итоге `init()` вызывается **ровно один раз**, а `dispose()` во время двойного монтирования **не** срабатывает.
+- Настоящий `dispose()` происходит только при реальном размонтировании (когда переигровки уже не будет).
+- Скоуп корректно переживает двойной mount/unmount цикл StrictMode — без создания и уничтожения лишнего скоупа.

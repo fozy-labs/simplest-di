@@ -9,6 +9,8 @@ export type {
     Injectable,
     InjectableOptionsSymbol,
     InjectingInstanceSymbol,
+    DefinedContract,
+    ContractProvider,
 } from "./di.types";
 
 export { inject, InjectTag, resetRegistry } from "./inject";
@@ -17,4 +19,10 @@ export { Scope } from "./Scope";
 export { unstable_createScopesStore } from "./createScopesStore";
 export type { ScopesStore, ScopesStoreOptions, AcquireOptions } from "./createScopesStore";
 export { getInjectorName } from "./getInjectorName";
-export { CircularDependencyError, NonCompatibleParentError, MustBeProvidedError } from "./errors";
+export {
+    CircularDependencyError,
+    NonCompatibleParentError,
+    MustBeProvidedError,
+    UnboundContractError,
+    ContractAlreadyResolvedError,
+} from "./errors";

@@ -217,6 +217,9 @@ describe("inject", () => {
         }
 
         expect(() => inject(OuterSingleton)).toThrow(NonCompatibleParentError);
+        // Сообщение обязано называть лайфтайм самой зависимости (SCOPED),
+        // а не родителя.
+        expect(() => inject(OuterSingleton)).toThrow(/Cannot inject SCOPED \(InnerScoped\) into SINGLETON/);
     });
 
     // T15: Scoped from transient parent throws NonCompatibleParentError
@@ -236,6 +239,7 @@ describe("inject", () => {
         }
 
         expect(() => inject(OuterTransient)).toThrow(NonCompatibleParentError);
+        expect(() => inject(OuterTransient)).toThrow(/Cannot inject SCOPED \(InnerScoped2\) into TRANSIENT/);
     });
 
     // T16: onScopeInit callback fires on scope.init()
@@ -308,6 +312,49 @@ describe("inject", () => {
         inject(ScopedLateInit, scope);
 
         expect(initFn).toHaveBeenCalledOnce();
+    });
+
+    // T18b: a SCOPED service with onScopeInit that is first injected *during* the
+    // scope's init$ emission (lazily, from inside another service's onScopeInit)
+    // must still run its onScopeInit and cleanup. Regression: init() used to set
+    // `_isInitialized` only after emitting, leaving a window where such a service
+    // was neither delivered the (already-snapshotted) init$ tick nor eligible for
+    // the "already initialized" direct call — silently skipping both hooks.
+    it("T18b: onScopeInit fires for a SCOPED service injected during init$ emission", () => {
+        const childCleanup = vi.fn();
+        const childInit = vi.fn(() => childCleanup);
+
+        @injectable({ lifetime: "SCOPED", requireProvide: false, onScopeInit: childInit })
+        class LazyChild {
+            id = Math.random();
+        }
+
+        // Assigned before init() runs; captured by Parent's onScopeInit closure.
+        let scope!: Scope;
+
+        @injectable({
+            lifetime: "SCOPED",
+            requireProvide: false,
+            onScopeInit() {
+                // Lazily resolve a lifecycle-bearing SCOPED child mid-init.
+                inject(LazyChild, scope);
+            },
+        })
+        class Parent {
+            id = Math.random();
+        }
+
+        scope = createScope();
+        inject(Parent, scope); // subscribed to init$ (scope not yet initialized)
+
+        scope.init(); // Parent.onScopeInit runs during init$.next() and injects LazyChild
+
+        expect(childInit).toHaveBeenCalledOnce();
+        expect(childCleanup).not.toHaveBeenCalled();
+
+        scope.dispose();
+
+        expect(childCleanup).toHaveBeenCalledOnce();
     });
 
     // T19: Singleton registry cleanup on construction failure

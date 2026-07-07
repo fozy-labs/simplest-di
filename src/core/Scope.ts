@@ -73,9 +73,15 @@ export class Scope {
     destroyed$: Subject<void> | null = null;
 
     init(): void {
+        // Флаг ставим ДО эмиссии (симметрично dispose): подписчик init$ может в
+        // своём onScopeInit лениво заинжектить другой SCOPED-сервис с onScopeInit.
+        // Тот подписывается на уже снапшотнутый/завершающийся init$ и текущий next
+        // не получит; единственный путь доставки для него — прямой вызов по
+        // isInitialized (см. inject.ts). Если бы флаг ставился после next(), его
+        // init (и, как следствие, cleanup) молча не выполнились бы.
+        this._isInitialized = true;
         this.init$?.next();
         this.init$?.complete();
-        this._isInitialized = true;
     }
 
     dispose(): void {

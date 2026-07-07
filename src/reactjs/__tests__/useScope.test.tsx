@@ -139,6 +139,40 @@ describe("useScope", () => {
         expect(captured!.name).toBe("b");
     });
 
+    // T96b: changing keyName disposes the old scope (no leak)
+    it("T96b: changing keyName disposes the old scope", async () => {
+        const parent = new Scope(null, "root");
+        let captured: Scope | null = null;
+
+        function Component({ k }: { k: string }) {
+            captured = useScope({ keyName: k });
+            return null;
+        }
+
+        const { rerender } = render(
+            <DiScopeProvider scope={parent}>
+                <Component k="a" />
+            </DiScopeProvider>,
+        );
+        await tick();
+        const first = captured!;
+
+        expect(first.parent).toBe(parent);
+        expect(first.isDisposed).toBe(false);
+        expect(parent.children.has(first)).toBe(true);
+
+        rerender(
+            <DiScopeProvider scope={parent}>
+                <Component k="b" />
+            </DiScopeProvider>,
+        );
+        await tick();
+
+        expect(captured).not.toBe(first);
+        expect(first.isDisposed).toBe(true);
+        expect(parent.children.has(first)).toBe(false);
+    });
+
     // T97: provide option provisions services into the new scope
     it("T97: provide option populates the scope with services", async () => {
         @injectable({ lifetime: "SCOPED", requireProvide: false })

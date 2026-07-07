@@ -83,9 +83,10 @@ class Config {}
 @injectable({
     lifetime: 'SCOPED',
     requireProvide: true,
-    onScopeInit: (instance) => {
-        instance.start();
-        return () => instance.stop(); // cleanup при dispose скоупа
+    onScopeInit(this: WebSocketConnection) {
+        // Инстанс доступен как `this`, а не как аргумент.
+        this.start();
+        return () => this.stop(); // cleanup при dispose скоупа
     },
 })
 class WebSocketConnection {
@@ -100,7 +101,7 @@ class WebSocketConnection {
 |---|---|---|
 | `lifetime` | `InjectionLifetime` | Обязательный. Режим жизненного цикла |
 | `requireProvide` | `boolean` | Требовать явного `inject.provide()`. По умолчанию `true` для SCOPED |
-| `onScopeInit` | `(instance) => void \| (() => void)` | Callback при инициализации скоупа. Может вернуть cleanup-функцию |
+| `onScopeInit` | `(this: Instance) => void \| (() => void)` | Callback при инициализации скоупа. Инстанс доступен как `this` (не как аргумент). Может вернуть cleanup-функцию |
 
 ## Контракты через `inject.define()`
 
@@ -321,6 +322,12 @@ class ServiceB {
     a = inject(ServiceA); // → CircularDependencyError
 }
 ```
+
+> ⚠️ Детекция работает **только для SINGLETON и SCOPED** — тех, у кого есть кэш
+> (реестр/скоуп) для sentinel'а. У **TRANSIENT** кэша нет, sentinel ставить некуда,
+> поэтому циклическая зависимость между TRANSIENT-сервисами не даёт
+> `CircularDependencyError`, а уходит в бесконечную рекурсию (stack overflow,
+> `RangeError`).
 
 ## `NonCompatibleParentError`
 

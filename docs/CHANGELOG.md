@@ -6,6 +6,25 @@
 проект придерживается [Semantic Versioning](https://semver.org/lang/ru/).
 
 
+## [0.5.3] - 2026-07-07
+
+### Добавлено
+
+- Из публичного API экспортированы классы ошибок `UnboundContractError`, `ContractAlreadyResolvedError` и типы `DefinedContract`, `ContractProvider` — теперь доступны `instanceof`-проверки контрактных ошибок и типизация контрактов.
+
+### Исправлено
+
+- Смена `keyName` в `useScope`/`<DiScopeProvider>` теперь корректно уничтожает старый scope. Раньше отложенный `dispose` ошибочно отменялся (как StrictMode-replay), из-за чего старый scope навсегда оставался в `parent.children`, а его cleanup-и `onScopeInit` и `destroyed$` не срабатывали.
+- SCOPED-сервис с `onScopeInit`, который лениво внедряется во время инициализации scope (из `onScopeInit` другого сервиса), теперь корректно получает свои `onScopeInit` и cleanup. Раньше `Scope.init()` ставил флаг `isInitialized` уже после эмиссии `init$`, поэтому такой сервис не получал ни текущий tick (подписка вне снапшота), ни прямой вызов по `isInitialized` — оба хука молча пропускались.
+- Сообщение `NonCompatibleParentError` указывало лайфтайм зависимости, взятый от родителя (`Cannot inject SINGLETON (X) …`), хотя `X` — SCOPED. Теперь выводится корректный лайфтайм самой зависимости (`Cannot inject SCOPED (X) …`).
+
+### Документация
+
+- Исправлен пример `onScopeInit` в `concepts.md`: инстанс доступен как `this`, а не как аргумент — прежний вариант `(instance) => …` падал с `TypeError`.
+- Исправлен пример tagged scope в `react-integration.md`: адресная регистрация по тегу вынесена в компонент под провайдером — из `Page` свежесозданный scope ещё не в контексте, и вызов бросал «No active scope found».
+- `unstable_createScopesStore().acquire()`: провал `provide` при создании scope больше не оставляет полусозданный scope подвешенным в `parent.children` — он уничтожается (`dispose`) с пробросом ошибки. Плюс `acquire` больше не возвращает scope, уничтоженный напрямую (в обход `store.dispose`) — вместо мёртвого экземпляра создаётся свежий.
+- `package.json`: условие `types` в `exports` перемещено перед `import`. Раньше типы разрешались лишь случайно — через sibling-lookup `.d.ts` рядом с `.js`.
+
 ## [0.5.2] - 2026-07-07
 
 ### Исправлено
@@ -98,7 +117,8 @@
 - Полная типизация (TypeScript ≥ 5.0, Stage 3 декораторы)
 - Документация: README, концепции DI, React-интеграция, миграция
 
-[Unreleased]: https://github.com/fozy-labs/simplest-di/compare/v0.5.2...HEAD
+[Unreleased]: https://github.com/fozy-labs/simplest-di/compare/v0.5.3...HEAD
+[0.5.3]: https://github.com/fozy-labs/simplest-di/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/fozy-labs/simplest-di/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/fozy-labs/simplest-di/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/fozy-labs/simplest-di/compare/v0.4.0...v0.5.0

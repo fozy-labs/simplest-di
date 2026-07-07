@@ -79,12 +79,14 @@ const injectImpl = function <T>(arg: ProvideOptions<T>, ctx?: Scope | InjectTag)
     }
 
     if (lifetime === "SCOPED") {
+        // Второй аргумент — лайфтайм внедряемой зависимости (здесь всегда SCOPED);
+        // несовместимый лайфтайм родителя ошибка берёт из InjectScope.current сама.
         if (InjectScope.current?.lifetime === "TRANSIENT") {
-            throw new NonCompatibleParentError(options.name, "TRANSIENT");
+            throw new NonCompatibleParentError(options.name, lifetime);
         }
 
         if (InjectScope.current?.lifetime === "SINGLETON") {
-            throw new NonCompatibleParentError(options.name, "SINGLETON");
+            throw new NonCompatibleParentError(options.name, lifetime);
         }
 
         const currentScope = getScope(ctx);

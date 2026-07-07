@@ -1,6 +1,7 @@
 import * as rootExports from "@/index";
 import {
     CircularDependencyError,
+    ContractAlreadyResolvedError,
     DiScopeProvider,
     getInjectorName,
     inject,
@@ -10,8 +11,10 @@ import {
     resetRegistry,
     Scope,
     setupReactDi,
+    UnboundContractError,
     useScope,
 } from "@/index";
+import type { ContractProvider, DefinedContract } from "@/index";
 
 // --- Tests ---
 
@@ -80,6 +83,34 @@ describe("Integration: exports", () => {
         it("MustBeProvidedError is a class (function)", () => {
             expect(MustBeProvidedError).toBeDefined();
             expect(typeof MustBeProvidedError).toBe("function");
+        });
+
+        it("UnboundContractError is a class (function)", () => {
+            expect(UnboundContractError).toBeDefined();
+            expect(typeof UnboundContractError).toBe("function");
+        });
+
+        it("ContractAlreadyResolvedError is a class (function)", () => {
+            expect(ContractAlreadyResolvedError).toBeDefined();
+            expect(typeof ContractAlreadyResolvedError).toBe("function");
+        });
+
+        it("contract types (DefinedContract, ContractProvider) are exported from the root barrel", () => {
+            interface Weather {
+                temp: number;
+            }
+
+            @injectable("SINGLETON")
+            class LocalWeather implements Weather {
+                temp = 21;
+            }
+
+            // Оба типа должны быть доступны из публичного бочонка (проверяется tsc).
+            const contract: DefinedContract<Weather> = inject.define<Weather>("Weather");
+            const provider: ContractProvider<Weather> = LocalWeather;
+            contract.bind(provider);
+
+            expect(inject(contract).temp).toBe(21);
         });
 
         it("setupReactDi is a function", () => {
