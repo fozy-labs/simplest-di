@@ -26,7 +26,12 @@ export function getInjectOptions<T>(
     arg: Constructor | DefinedContract<T> | InjectOptions<T>,
 ): InjectComputedOptions<T> {
     if (typeof arg === "function") {
-        const options = (arg as unknown as Partial<Injectable>)[INJECTABLE_OPTIONS];
+        // Только СВОЙ дескриптор: @injectable-метаданные не должны наследоваться
+        // подклассом через прототип конструктора (иначе недекорированный подкласс
+        // молча резолвится с lifetime родителя). Требуем явного @injectable.
+        const options = Object.prototype.hasOwnProperty.call(arg, INJECTABLE_OPTIONS)
+            ? (arg as unknown as Partial<Injectable>)[INJECTABLE_OPTIONS]
+            : undefined;
 
         if (!options) {
             throw new Error(`No injectable options found for ${arg.name}. Did you forget to add @injectable()?`);

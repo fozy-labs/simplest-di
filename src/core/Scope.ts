@@ -43,8 +43,30 @@ export class Scope {
         return null;
     }
 
+    /**
+     * Есть ли токен в этом скоупе или в цепочке родителей. В отличие от
+     * {@link getInstance} различает «токена нет» и «инстанс === null/undefined»:
+     * `getInstance` возвращает `null` в обоих случаях, поэтому кэш-хит должен
+     * проверяться существованием токена, а не «истинностью» значения.
+     */
+    hasInstance(token: ScopeToken): boolean {
+        if (this.instances.has(token)) {
+            return true;
+        }
+
+        if (this.parent) {
+            return this.parent.hasInstance(token);
+        }
+
+        return false;
+    }
+
     setInstance<T>(token: ScopeToken, instance: T | InjectingInstanceSymbol): void {
         this.instances.set(token, instance);
+    }
+
+    deleteInstance(token: ScopeToken): void {
+        this.instances.delete(token);
     }
 
     init$: Subject<void> | null = null;

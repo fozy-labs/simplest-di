@@ -26,4 +26,40 @@ describe("getInjectorName", () => {
 
         expect(capturedName).toBe("ParentService");
     });
+
+    // strict=false без родителя возвращает согласованный null (не undefined/объект).
+    it("T46: strict=false returns null when there is no parent injector", () => {
+        let captured: unknown = "sentinel";
+
+        @injectable()
+        class TopService {
+            constructor() {
+                captured = getInjectorName(false);
+            }
+        }
+
+        inject(TopService);
+
+        expect(captured).toBeNull();
+    });
+
+    // strict=true без родителя бросает.
+    it("T47: strict=true throws when there is no parent injector", () => {
+        let thrown = false;
+
+        @injectable()
+        class TopService {
+            constructor() {
+                try {
+                    getInjectorName(true);
+                } catch {
+                    thrown = true;
+                }
+            }
+        }
+
+        inject(TopService);
+
+        expect(thrown).toBe(true);
+    });
 });

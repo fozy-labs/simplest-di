@@ -51,13 +51,14 @@ const injectImpl = function <T>(arg: ProvideOptions<T>, ctx?: Scope | InjectTag)
     }
 
     if (lifetime === "SINGLETON") {
-        const registered = registry.get(token);
+        // has(), а не truthiness: инстанс может быть легитимно falsy (0, "", false).
+        if (registry.has(token)) {
+            const registered = registry.get(token);
 
-        if (registered === INJECTING_INSTANCE) {
-            throw new CircularDependencyError(options.name);
-        }
+            if (registered === INJECTING_INSTANCE) {
+                throw new CircularDependencyError(options.name);
+            }
 
-        if (registered) {
             return registered as InjectedInstance<T>;
         }
 
@@ -92,40 +93,69 @@ const injectImpl = function <T>(arg: ProvideOptions<T>, ctx?: Scope | InjectTag)
             throw new Error(`No active scope found for scoped injection of ${options.name}`);
         }
 
-        const scopedInstance = currentScope.getInstance<InjectedInstance<T>>(token as object);
+        // hasInstance(), а не truthiness/`!== null`: инстанс может быть легитимно
+        // falsy (0, "", false) или самим `null`/`undefined`. getInstance возвращает
+        // `null` и при отсутствии токена, и при инстансе === null — их различает
+        // только проверка существования токена в цепочке скоупов (паритет со
+        // SINGLETON, где для этого используется registry.has()).
+        if (currentScope.hasInstance(token as object)) {
+            const scopedInstance = currentScope.getInstance<InjectedInstance<T>>(token as object);
 
-        if (scopedInstance === INJECTING_INSTANCE) {
-            throw new CircularDependencyError(options.name);
+            if (scopedInstance === INJECTING_INSTANCE) {
+                throw new CircularDependencyError(options.name);
+            }
+
+            return scopedInstance as InjectedInstance<T>;
         }
 
-        if (!scopedInstance && options.requireProvide) {
+        if (options.requireProvide) {
             throw new MustBeProvidedError(options.name);
-        }
-
-        if (scopedInstance) {
-            return scopedInstance;
         }
 
         const onScopeInit = options.onScopeInit;
         const onScopeDestroy = [] as (() => void)[];
 
+        // Проверяем поддержку lifecycle-колбэков ДО любой мутации скоупа, чтобы
+        // отклонённое внедрение не оставляло за собой закэшированный инстанс или
+        // висячую подписку. Требование destroyed$ при наличии onScopeInit —
+        // намеренный контракт: потребитель с хуками обязан прокинуть lifecycle-
+        // способный скоуп (например, через useScope/setupReactDi); мы лишь
+        // переносим отказ на fail-fast до создания инстанса.
         if (onScopeInit && !currentScope.init$) {
             throw new Error(`Scope for ${options.name} does not support initialization callbacks`);
-        } else if (onScopeInit && currentScope.init$) {
-            currentScope.init$!.subscribe(() => {
+        }
+
+        if (onScopeInit && !currentScope.destroyed$) {
+            throw new Error(`Scope for ${options.name} does not support destruction callbacks`);
+        }
+
+        // Помечаем как "в процессе создания", чтобы отловить циклические зависимости
+        currentScope.setInstance(token as object, INJECTING_INSTANCE);
+
+        let instance: InjectedInstance<T>;
+
+        try {
+            instance = InjectScope.createInstance(options as InjectOptions<any>) as InjectedInstance<T>;
+        } catch (error) {
+            // Откатываем "в процессе создания"-маркер, чтобы повторная попытка
+            // не была ошибочно принята за циклическую зависимость.
+            currentScope.deleteInstance(token as object);
+            throw error;
+        }
+
+        currentScope.setInstance(token as object, instance);
+
+        // Подписку на init$ регистрируем ПОСЛЕ успешного создания инстанса: провал
+        // конструктора не оставляет висячей подписки, а колбэк не обращается к ещё
+        // не инициализированной переменной instance.
+        if (onScopeInit && currentScope.init$) {
+            currentScope.init$.subscribe(() => {
                 const result = onScopeInit.call(instance) ?? undefined;
                 if (typeof result === "function") {
                     onScopeDestroy.push(result);
                 }
             });
         }
-
-        // Помечаем как "в процессе создания", чтобы отловить циклические зависимости
-        currentScope.setInstance(token as object, INJECTING_INSTANCE);
-
-        const instance = InjectScope.createInstance(options as InjectOptions<any>) as InjectedInstance<T>;
-
-        currentScope.setInstance(token as object, instance);
 
         if (currentScope.isInitialized && onScopeInit) {
             const result = onScopeInit.call(instance) ?? undefined;
@@ -135,10 +165,12 @@ const injectImpl = function <T>(arg: ProvideOptions<T>, ctx?: Scope | InjectTag)
             }
         }
 
-        if (onScopeDestroy && !currentScope.destroyed$) {
-            throw new Error(`Scope for ${options.name} does not support destruction callbacks`);
-        } else if (onScopeDestroy && currentScope.destroyed$) {
-            currentScope.destroyed$!.subscribe(() => {
+        // Поддержка destroyed$ уже провалидирована выше (до мутации скоупа), так что
+        // здесь остаётся только подписка. Destroy-колбэки появляются лишь как возврат
+        // onScopeInit, поэтому подписка привязана к onScopeInit: сущность SCOPED без
+        // хуков не плодит пустую подписку.
+        if (onScopeInit && currentScope.destroyed$) {
+            currentScope.destroyed$.subscribe(() => {
                 onScopeDestroy.forEach((fn) => fn.call(instance));
             });
         }

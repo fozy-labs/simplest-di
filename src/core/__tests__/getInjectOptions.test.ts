@@ -135,4 +135,34 @@ describe("getInjectOptions", () => {
         expect(options.getInstance()).toEqual({ value: "object-provider" });
         expect(factory).toHaveBeenCalledOnce();
     });
+
+    // @injectable-метаданные не наследуются подклассом через прототип конструктора:
+    // недекорированный подкласс должен отвергаться, а не молча резолвиться с опциями родителя.
+    it("T48: undecorated subclass of an @injectable class throws (options are not inherited)", () => {
+        @injectable("SINGLETON")
+        class Base {
+            id = Math.random();
+        }
+
+        class Derived extends Base {}
+
+        expect(() => getInjectOptions(Derived as never)).toThrow(/Did you forget to add @injectable/);
+    });
+
+    // Явно декорированный подкласс резолвится по своим опциям.
+    it("T49: explicitly decorated subclass resolves with its own options", () => {
+        @injectable("SINGLETON")
+        class Base {
+            id = Math.random();
+        }
+
+        @injectable("TRANSIENT")
+        class Derived extends Base {}
+
+        const options = getInjectOptions(Derived);
+
+        expect(options.lifetime).toBe("TRANSIENT");
+        expect(options.token).toBe(Derived);
+        expect(options.name).toBe("Derived");
+    });
 });

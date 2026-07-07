@@ -519,3 +519,99 @@ describe("inject.provide", () => {
         expect(() => inject.provide(TransientService)).toThrow(/SINGLETON or SCOPED/);
     });
 });
+
+// Существование, а не truthiness: проверки наличия инстанса/колбэков должны
+// опираться на явное сравнение (has / !== null / onScopeInit), а не на
+// «истинность» значения.
+describe("inject — existence vs truthiness", () => {
+    // Сущность SCOPED без lifecycle-хуков не должна требовать destroyed$.
+    it("T53: scoped without lifecycle hooks does not require destroyed$", () => {
+        @injectable("SCOPED")
+        class PlainScoped {
+            id = Math.random();
+        }
+
+        const scope = new Scope(null, "manual"); // init$/destroyed$ равны null
+
+        expect(() => inject.provide(PlainScoped, scope)).not.toThrow();
+        expect(inject(PlainScoped, scope)).toBeInstanceOf(PlainScoped);
+    });
+
+    // Guard-регрессия — для сущности С хуком destroyed$ по-прежнему обязателен.
+    it("T54: scoped with onScopeInit still requires destroyed$", () => {
+        @injectable({ lifetime: "SCOPED", requireProvide: false, onScopeInit: () => () => {} })
+        class ScopedWithTeardown {
+            id = Math.random();
+        }
+
+        const scope = new Scope(null, "half");
+        scope.init$ = new Subject<void>(); // есть init$, но нет destroyed$
+
+        expect(() => inject(ScopedWithTeardown, scope)).toThrow(/does not support destruction callbacks/);
+    });
+
+    // Singleton с falsy-инстансом кэшируется, а не пересоздаётся.
+    it("T55: singleton caches a falsy (0) factory result", () => {
+        const factory = vi.fn(() => 0);
+        const options = {
+            token: {},
+            lifetime: "SINGLETON" as const,
+            getInstance: factory,
+            name: "ZeroSingleton",
+        };
+
+        const a = inject(options as any);
+        const b = inject(options as any);
+
+        expect(a).toBe(0);
+        expect(b).toBe(0);
+        expect(factory).toHaveBeenCalledOnce();
+    });
+
+    // Scoped с falsy-инстансом кэшируется и не требует повторного provide.
+    it("T56: scoped caches a falsy (0) factory result without MustBeProvidedError", () => {
+        const factory = vi.fn(() => 0);
+        const options = {
+            token: {},
+            lifetime: "SCOPED" as const,
+            getInstance: factory,
+            name: "ZeroScoped",
+            requireProvide: true,
+        };
+
+        const scope = createScope();
+
+        const provided = inject.provide(options as any, scope);
+        expect(provided).toBe(0);
+
+        // requireProvide=true, но значение уже есть в скоупе → вернуть его, не бросать.
+        const resolved = inject(options as any, scope);
+        expect(resolved).toBe(0);
+        expect(factory).toHaveBeenCalledOnce();
+    });
+
+    // Инстанс === null кэшируется так же, как любой другой: наличие в скоупе
+    // определяется существованием токена, а не «истинностью» значения. Иначе
+    // getInstance путает «токена нет» с «инстанс === null» и пересоздаёт/требует
+    // повторный provide (паритет со SINGLETON, который уже корректен через has()).
+    it("T79: scoped caches a null factory result without MustBeProvidedError", () => {
+        const factory = vi.fn(() => null);
+        const options = {
+            token: {},
+            lifetime: "SCOPED" as const,
+            getInstance: factory,
+            name: "NullScoped",
+            requireProvide: true,
+        };
+
+        const scope = createScope();
+
+        const provided = inject.provide(options as any, scope);
+        expect(provided).toBeNull();
+
+        // requireProvide=true, но значение (null) уже в скоупе → вернуть его, не бросать.
+        const resolved = inject(options as any, scope);
+        expect(resolved).toBeNull();
+        expect(factory).toHaveBeenCalledOnce();
+    });
+});
