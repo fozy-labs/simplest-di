@@ -98,7 +98,8 @@
 - Полная типизация (TypeScript ≥ 5.0, Stage 3 декораторы)
 - Документация: README, концепции DI, React-интеграция, миграция
 
-[Unreleased]: https://github.com/fozy-labs/simplest-di/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/fozy-labs/simplest-di/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/fozy-labs/simplest-di/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/fozy-labs/simplest-di/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/fozy-labs/simplest-di/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/fozy-labs/simplest-di/compare/v0.3.0...v0.4.0
